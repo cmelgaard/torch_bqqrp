@@ -3,25 +3,24 @@
 This project depends on several C++ numerical libraries:
 
 - **Random123**  
-- **BLAS++**  
-- **LAPACK++**  
+- **BLAS++** and **LAPACK++**  
 - **RandBLAS**  
 - **RandLAPACK**  
 - **(Optional) CUDA** for GPU-accelerated `BQRRP_GPU`
 
-To maintain **reproducibility**, **isolation**, and **zero system contamination**, all dependencies are:
+To keep things **self-contained and reproducible**, all of these are:
 
 - cloned into: `deps/src/`
 - built and installed into: `deps/install/`
 
-Everything stays inside this repository.  
-To reset everything: **delete the repo** or just delete `deps/` and rerun `install.sh`.
+Everything stays inside this repo.  
+If you want to reset the build, just delete `deps/` (or the entire repo) and reinstall.
 
 ---
 
-# Repository Layout (Developer-Friendly)
+## Repository Layout
 
-Below is the complete layout *after* running `install.sh`, including the new `Makefile`:
+After installing, the repo looks roughly like:
 
 ```text
 torch_bqrrp/
@@ -40,8 +39,8 @@ torch_bqrrp/
 │   └── bqrrp*.so                # compiled PyTorch extension (generated)
 │
 ├── examples/
-│   ├── bqrrp_demo.py
-│   └── airbench94_lisao.py
+│   ├── bqrrp_demo.py            # BQRRP demo on a 5000×2800 matrix
+│   └── airbench94_lisao.py      # CIFAR-10 + LISAO optimizer example
 │
 └── deps/                        # CREATED BY install.sh (ignored by git)
     ├── src/                     # dependency sources
@@ -53,114 +52,176 @@ torch_bqrrp/
     │
     └── install/                 # installed headers + libraries
         ├── include/
-        │   ├── Random123/
-        │   ├── blaspp/
-        │   ├── lapackpp/
-        │   ├── RandBLAS/
-        │   └── RandLAPACK/
-        │
         ├── lib/
-        │   ├── libblaspp.so
-        │   ├── liblapackpp.so
-        │   ├── libRandBLAS.so
-        │   ├── libRandLAPACK.so
-        │   └── (optional CUDA libs)
-        │
         └── cmake/
-            ├── blaspp/
-            ├── lapackpp/
-            ├── RandBLAS/
-            └── RandLAPACK/
 ```
 
-The entire dependency tree lives in `deps/` and is **ignored** by git.  
-This structure is commonly used in scientific/HPC projects.
+The `deps/` directory is generated; it is **not tracked by git**.
 
 ---
 
-# 1. Installing with `install.sh` (Recommended)
+# 1. Recommended Installation: Using the Makefile
 
-From the root of the repo:
+The **supported and recommended** way to install is via the `Makefile`.  
+You should almost never need to call `install.sh` directly.
+
+From the repo root:
 
 ```bash
-chmod +x install.sh
-./install.sh
+make install
 ```
 
-This performs:
+This will:
 
-1. Installs system packages via `apt`
-2. Clones all libraries into `deps/src/`
-3. Builds and installs them into `deps/install/`
-4. Configures environment variables for compilers + linkers
-5. Builds the PyTorch extension (`python3 setup.py develop`)
-6. Runs the BQRRP demo to verify the install
+1. Install required system packages via `apt` (compiler, cmake, OpenBLAS, etc.).
+2. Clone all C++ dependencies into `deps/src/`.
+3. Build and install them into `deps/install/`.
+4. Build the PyTorch extension (`python3 setup.py develop`).
+5. Run the BQRRP demo (`examples/bqrrp_demo.py`) to verify it works.
 
-Everything stays in `deps/`, and **nothing is installed globally**.
+By default, `make install` enables **CUDA mode**, and **CUDA is required**.  
+If CUDA is not installed or `nvcc` is not in your `PATH`, it will fail with a clear error.
 
 ---
 
-# 2. CUDA Support (`USE_CUDA` Flag)
+## 1.1 CPU-only install
 
-This project supports two modes:
-
-| Mode | Description |
-|------|-------------|
-| **Default (USE_CUDA=1)** | CUDA is **required**, and installer **fails** if CUDA is missing |
-| **CPU-only (USE_CUDA=0)** | Build everything without CUDA |
-
-### Default behavior (CUDA required)
+If you want a **CPU-only** build (no CUDA at all), run:
 
 ```bash
-./install.sh
+make install-cpu
 ```
 
-- `USE_CUDA` defaults to `1`
-- If `nvcc` is missing → **installation fails**
-- If CUDA exists:
-  - BLAS++ is built with cuBLAS
-  - RandLAPACK is built with GPU support
-  - PyTorch extension exposes GPU BQRRP
-
-### CPU-only install
+This is equivalent to:
 
 ```bash
 USE_CUDA=0 ./install.sh
 ```
 
-This builds:
+and will:
 
-- BLAS++ without cuBLAS
-- RandLAPACK CPU-only
-- CPU-only BQRRP extension
+- Build BLAS++ without cuBLAS
+- Build RandLAPACK with `RequireCUDA=OFF`
+- Produce a CPU-only BQRRP extension
 
-Use this mode on systems without NVIDIA GPUs.
-
----
-
-# 3. Checking CUDA Version
-
-```bash
-nvcc --version
-```
-
-or
-
-```bash
-nvidia-smi | grep "CUDA Version"
-```
-
-or
-
-```bash
-cat /usr/local/cuda/version.txt
-```
-
-CUDA **12.2** is fully compatible with this project.
+Use this on machines without NVIDIA GPUs or where CUDA is not available.
 
 ---
 
-# 4. Verifying Installation
+## 1.2 Running tests
+
+After installation finishes, you can run:
+
+```bash
+make test
+```
+
+This runs:
+
+- `python3 examples/bqrrp_demo.py`
+- `python3 examples/airbench94_lisao.py`
+
+to verify the low-level BQRRP binding and the LISAO optimizer on CIFAR-10.
+
+---
+
+## 1.3 Cleaning
+
+To remove just the dependency tree:
+
+```bash
+make clean-deps
+```
+
+This deletes `deps/` (all cloned sources and built libs), but leaves your Python code and examples.
+
+To clean build artifacts (CMake/Python/build outputs, compiled extensions, etc.):
+
+```bash
+make clean-build
+```
+
+To nuke **everything generated** (both `deps/` and build artifacts):
+
+```bash
+make clean-all
+```
+
+---
+
+# 2. Optional but Recommended: Python Virtual Environment
+
+On modern Linux systems (e.g., Ubuntu 24.04), system Python is “externally managed” and does not like global `pip` usage.  
+The safest way to work is inside a **virtual environment**.
+
+From the repo root:
+
+```bash
+cd /path/to/torch_bqrrp
+
+# Create a venv (only needed once)
+python3 -m venv .venv
+
+# Activate it
+source .venv/bin/activate
+
+# Inside the venv, install Python deps you need:
+pip install --upgrade pip setuptools wheel
+pip install torch torchvision  # or your preferred versions
+```
+
+Then:
+
+```bash
+make install
+```
+
+or for CPU-only:
+
+```bash
+make install-cpu
+```
+
+The compiled extension will be built against the Python and PyTorch in **this venv**, not system Python.
+
+If you ever start a new shell, don’t forget to re-activate the venv:
+
+```bash
+cd /path/to/torch_bqrrp
+source .venv/bin/activate
+```
+
+before running `make`, `python`, etc.
+
+---
+
+# 3. CUDA Behavior (`USE_CUDA`)
+
+The CUDA behavior is controlled by `USE_CUDA`, but you normally never set it directly — the **Makefile does it for you**.
+
+- `make install`  
+  → runs `USE_CUDA=1 ./install.sh` internally  
+  → **CUDA required**
+
+- `make install-cpu`  
+  → runs `USE_CUDA=0 ./install.sh` internally  
+  → **CPU-only build**
+
+Internally:
+
+- `USE_CUDA=1` (default for `make install`):
+  - `nvcc` must be in `PATH`
+  - BLAS++ is built with cuBLAS
+  - RandLAPACK is built with `RequireCUDA=ON`
+- `USE_CUDA=0` (`make install-cpu`):
+  - CUDA is not used at all
+  - BLAS++ and RandLAPACK are built CPU-only
+
+---
+
+# 4. Verifying the Installation
+
+After `make install` or `make install-cpu` completes successfully:
 
 ## 4.1 BQRRP demo
 
@@ -170,21 +231,21 @@ python3 examples/bqrrp_demo.py
 
 This:
 
-- Builds a 5000×2800 matrix  
-- Runs BQRRP (CPU or GPU)  
-- Prints pivot info  
+- Builds a 5000×2800 matrix
+- Runs BQRRP (and BQRRP_GPU if built with CUDA)
+- Prints pivot info / shapes
 
-If it runs without error, installation succeeded.
+If this runs without error, the core extension is working.
 
 ---
 
-## 4.2 CIFAR-10 + LISAO Example
+## 4.2 CIFAR-10 + LISAO
 
 ```bash
 python3 examples/airbench94_lisao.py
 ```
 
-Optionally:
+Optional: specify CIFAR data directory:
 
 ```bash
 export CIFAR_DATA=./data
@@ -192,141 +253,110 @@ export CIFAR_DATA=./data
 
 This:
 
-- Downloads CIFAR-10  
-- Builds a simple CNN  
-- Trains using SGD + LISAO  
-- Prints accuracy and timing  
+- Downloads CIFAR-10 (if not present)
+- Builds a small CNN
+- Trains using SGD and LISAO
+- Prints accuracy and timing info
 
 ---
 
-# 5. Makefile Usage (Optional but Recommended)
+# 5. Advanced: Using `install.sh` Directly (Not Recommended)
 
-This repo includes a **Makefile** providing convenient shortcuts.
+The primary supported interface is:
 
-## 5.1 Install (CUDA required)
+- `make install`
+- `make install-cpu`
+
+`install.sh` is a **lower-level helper** and should only be used if you know what you’re doing or are debugging install issues.
+
+From the repo root:
 
 ```bash
-make install
-```
+chmod +x install.sh
 
-Equivalent to:
-
-```bash
+# CUDA required
 ./install.sh
-```
 
-## 5.2 CPU-only install
-
-```bash
-make install-cpu
-```
-
-Equivalent to:
-
-```bash
+# CPU-only
 USE_CUDA=0 ./install.sh
 ```
 
-## 5.3 Run both examples
+The script:
 
-```bash
-make test
-```
+1. Installs system dev packages via `apt`.
+2. Clones all dependencies into `deps/src/`.
+3. Builds and installs them under `deps/install/`.
+4. Exports environment variables for the compiler/linker.
+5. Runs `python3 setup.py develop`.
+6. Executes `python3 examples/bqrrp_demo.py`.
 
-## 5.4 Clean dependency tree (remove deps/)
-
-```bash
-make clean-deps
-```
-
-## 5.5 Clean all build artifacts
-
-```bash
-make clean-build
-```
-
-## 5.6 Clean everything
-
-```bash
-make clean-all
-```
+Again, for normal users: **use the Makefile**.
 
 ---
 
-# 6. Manual Installation (Advanced Only)
+# 6. Troubleshooting
 
-If you truly want to replicate the script manually:
+### 6.1 “CUDA was requested but 'nvcc' is not in PATH”
 
-1. `apt install` required dev packages  
-2. Clone all dependencies into `deps/src/`  
-3. Use CMake to install each into `deps/install/`  
-4. Export environment variables:
-   ```bash
-   export CMAKE_PREFIX_PATH=$PWD/deps/install:$CMAKE_PREFIX_PATH
-   export LD_LIBRARY_PATH=$PWD/deps/install/lib:$LD_LIBRARY_PATH
-   export LIBRARY_PATH=$PWD/deps/install/lib:$LIBRARY_PATH
-   export CPATH=$PWD/deps/install/include:$CPATH
-   ```
-5. Build extension:
-   ```bash
-   python3 setup.py develop
-   ```
+If you run `make install` and see an error about CUDA:
 
-But **99% of users should never do this** — use `install.sh`.
+- Make sure CUDA toolkit is installed
+- Make sure `nvcc` is visible:
 
----
+  ```bash
+  which nvcc
+  nvcc --version
+  ```
 
-# 7. Troubleshooting
+- Or explicitly choose CPU mode:
 
-## CUDA requested but missing
-
-```
-ERROR: CUDA was requested (USE_CUDA != 0) but 'nvcc' is not in PATH.
-```
-
-Fix:
-
-- Install CUDA properly, **or**
-- Use CPU-only mode:
-
-```bash
-USE_CUDA=0 ./install.sh
-```
+  ```bash
+  make install-cpu
+  ```
 
 ---
 
-## Missing BLAS++ or LAPACK++
+### 6.2 Externally-managed Python environment (Ubuntu 24.04)
 
-Delete `deps/` and reinstall:
-
-```bash
-rm -rf deps
-./install.sh
-```
+If you see `error: externally-managed-environment` related to `pip`, it means you’re trying to modify system Python.  
+Fix: create and use a **venv** (see Section 2 above).
 
 ---
 
-## Shared library load errors
+### 6.3 Shared library load errors
+
+If Python can’t find C++ shared libraries at runtime, try:
 
 ```bash
 export LD_LIBRARY_PATH=$PWD/deps/install/lib:$LD_LIBRARY_PATH
 ```
 
+and re-run your command.
+
 ---
 
-# 8. Getting Help
+### 6.4 Nuking and starting over
 
-When opening an issue, include:
-
-- OS version  
-- CUDA version (if any)  
-- Python + PyTorch versions  
-- Full output of:
+If the build gets into a weird state:
 
 ```bash
-./install.sh
+make clean-all
+make install        # or make install-cpu
 ```
 
 ---
 
-# END OF INSTALL.md
+# 7. Getting Help
+
+If you’re stuck, please include:
+
+- OS (e.g., Ubuntu 24.04)
+- CUDA version (if applicable)
+- Python + PyTorch versions
+- Whether you used a venv
+- Exact command you ran (`make install`, `make install-cpu`, etc.)
+- Full install log (copy-paste from your terminal)
+
+when opening an issue.
+
+---
