@@ -42,10 +42,15 @@ sudo apt install -y \
   curl \
   python3-dev \
   python3-pip \
+  python3-setuptools \
+  python3-wheel \
   libopenblas-dev \
   liblapack-dev
 
-python3 -m pip install --upgrade pip
+# NOTE:
+# We DO NOT upgrade pip here to avoid PEP 668 "externally-managed"
+# errors on newer Ubuntu. You should manage your Python environment
+# (and torch install) yourself, e.g. via venv/conda.
 
 # ============================================================
 # 2. CUDA requirement check
@@ -62,7 +67,7 @@ else
   echo "[CUDA] CUDA mode REQUIRED (USE_CUDA != 0)."
   if ! command -v nvcc >/dev/null 2>&1; then
     echo "ERROR: CUDA was requested (USE_CUDA != 0) but 'nvcc' is not in PATH."
-    echo "       Either install CUDA, or run explicitly in CPU-only mode:"
+    echo "       Either install CUDA, or rerun in CPU-only mode:"
     echo "           USE_CUDA=0 ./install.sh"
     exit 1
   fi
