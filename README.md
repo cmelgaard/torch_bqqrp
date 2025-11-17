@@ -56,6 +56,9 @@ You will need:
 
 ## Installing RandBLAS and RandLAPACK
 
+For full installation details (including BLAS++/LAPACK++), see:  
+👉 **[INSTALL.md](./INSTALL.md)**
+
 The exact commands may vary by system, but the typical build steps are:
 
 ### 1. Install RandBLAS
