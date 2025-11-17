@@ -93,18 +93,24 @@ clone_if_missing () {
 }
 
 # ============================================================
-# 3. Random123
+# 3. Random123 (header-only, manual copy)
 # ============================================================
 
-echo "[2/7] Installing Random123..."
+echo "[2/7] Installing Random123 headers (no make, no docs)..."
 clone_if_missing "https://github.com/DEShawResearch/random123.git" \
                  "$DEPS_SRC/random123"
 cd "$DEPS_SRC/random123"
 
-# Random123 uses a raw GNU Makefile.
-# IMPORTANT: 'install' respects PREFIX, 'install-include' does NOT.
-# We explicitly install into deps/install instead of /usr/local.
-make PREFIX="$DEPS_INSTALL" install
+# Ensure target include directory exists
+mkdir -p "$DEPS_INSTALL/include"
+
+# Remove any old copy to avoid stale headers
+rm -rf "$DEPS_INSTALL/include/Random123"
+
+# Copy header tree directly
+cp -r include/Random123 "$DEPS_INSTALL/include/"
+
+echo "[Random123] Installed headers to $DEPS_INSTALL/include/Random123"
 
 # ============================================================
 # 4. BLAS++
