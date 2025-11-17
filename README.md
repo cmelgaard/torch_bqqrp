@@ -19,6 +19,7 @@ The project provides:
 
 ## Repository Layout
 
+```text
 torch_bqrrp/
 ├── README.md
 ├── setup.py
@@ -33,7 +34,7 @@ torch_bqrrp/
 └── examples/
     ├── bqrrp_demo.py         # Simple 5000x2800 demo of BQRRP binding
     └── airbench94_lisao.py   # CIFAR10 training script using SingleDeviceLisao
-
+```
 
 ## Dependencies
 
