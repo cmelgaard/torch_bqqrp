@@ -49,7 +49,7 @@ sudo apt install -y \
 
 # NOTE:
 # We DO NOT upgrade pip here to avoid PEP 668 "externally-managed"
-# errors on newer Ubuntu. You should manage your Python environment
+# issues on newer Ubuntu. You should manage your Python environment
 # (and torch install) yourself, e.g. via venv/conda.
 
 # ============================================================
@@ -100,7 +100,10 @@ echo "[2/7] Installing Random123..."
 clone_if_missing "https://github.com/DEShawResearch/random123.git" \
                  "$DEPS_SRC/random123"
 cd "$DEPS_SRC/random123"
-make install-include PREFIX="$DEPS_INSTALL"
+
+# Random123 uses a raw GNU Makefile and installs to /usr/local by default.
+# We override PREFIX so it installs into deps/install instead of /usr/local.
+make PREFIX="$DEPS_INSTALL" install-include
 
 # ============================================================
 # 4. BLAS++

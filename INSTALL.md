@@ -73,7 +73,7 @@ make install
 
 This will:
 
-1. Install required system packages via `apt` (compiler, cmake, OpenBLAS, etc.).
+1. Install required system packages via `apt` (compiler, CMake, OpenBLAS, etc.).
 2. Clone all C++ dependencies into `deps/src/`.
 3. Build and install them into `deps/install/`.
 4. Build the PyTorch extension (`python3 setup.py develop`).
@@ -170,7 +170,7 @@ pip install --upgrade pip setuptools wheel
 pip install torch torchvision  # or your preferred versions
 ```
 
-Then:
+Then run:
 
 ```bash
 make install
@@ -285,7 +285,7 @@ The script:
 
 1. Installs system dev packages via `apt`.
 2. Clones all dependencies into `deps/src/`.
-3. Builds and installs them under `deps/install/`.
+3. Builds and installs them under `deps/install/` (including Random123 via `PREFIX=...`).
 4. Exports environment variables for the compiler/linker.
 5. Runs `python3 setup.py develop`.
 6. Executes `python3 examples/bqrrp_demo.py`.
@@ -296,7 +296,7 @@ Again, for normal users: **use the Makefile**.
 
 # 6. Troubleshooting
 
-### 6.1 “CUDA was requested but 'nvcc' is not in PATH”
+## 6.1 “CUDA was requested but 'nvcc' is not in PATH”
 
 If you run `make install` and see an error about CUDA:
 
@@ -316,14 +316,14 @@ If you run `make install` and see an error about CUDA:
 
 ---
 
-### 6.2 Externally-managed Python environment (Ubuntu 24.04)
+## 6.2 Externally-managed Python environment (Ubuntu 24.04)
 
 If you see `error: externally-managed-environment` related to `pip`, it means you’re trying to modify system Python.  
 Fix: create and use a **venv** (see Section 2 above).
 
 ---
 
-### 6.3 Shared library load errors
+## 6.3 Shared library load errors
 
 If Python can’t find C++ shared libraries at runtime, try:
 
@@ -335,7 +335,7 @@ and re-run your command.
 
 ---
 
-### 6.4 Nuking and starting over
+## 6.4 Nuking and starting over
 
 If the build gets into a weird state:
 
