@@ -18,10 +18,12 @@ all: install
 
 .PHONY: install
 install:
+	chmod +x install.sh
 	./install.sh
 
 .PHONY: install-cpu
 install-cpu:
+	chmod +x install.sh
 	USE_CUDA=0 ./install.sh
 
 # ----------------------------------------------------------

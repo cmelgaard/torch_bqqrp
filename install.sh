@@ -101,9 +101,10 @@ clone_if_missing "https://github.com/DEShawResearch/random123.git" \
                  "$DEPS_SRC/random123"
 cd "$DEPS_SRC/random123"
 
-# Random123 uses a raw GNU Makefile and installs to /usr/local by default.
-# We override PREFIX so it installs into deps/install instead of /usr/local.
-make PREFIX="$DEPS_INSTALL" install-include
+# Random123 uses a raw GNU Makefile.
+# IMPORTANT: 'install' respects PREFIX, 'install-include' does NOT.
+# We explicitly install into deps/install instead of /usr/local.
+make PREFIX="$DEPS_INSTALL" install
 
 # ============================================================
 # 4. BLAS++
