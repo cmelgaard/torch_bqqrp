@@ -27,13 +27,12 @@ DEPS_INSTALL = ROOT / "deps" / "install"
 DEPS_SRC = ROOT / "deps" / "src"
 DEPS_SRC_RL = DEPS_SRC / "RandLAPACK"
 
-
 def ensure_path(p: Path, what: str) -> str:
     if not p.exists():
         raise RuntimeError(f"{what} not found: {p}")
     return str(p)
 
-
+# Core include dirs
 include_dirs = [
     ensure_path(DEPS_INSTALL / "include", "deps/install/include"),
     # RandBLAS / RandLAPACK hierarchy
@@ -66,7 +65,7 @@ libraries = [
 ]
 
 # -------------------------------------------------------------------
-# Compiler flags (with AVX512 FP16 workaround)
+# Compiler flags — **THIS IS THE FIX**
 # -------------------------------------------------------------------
 
 extra_compile_args = {
@@ -75,19 +74,24 @@ extra_compile_args = {
         "-fopenmp",
         "-std=c++20",
         "-D_GLIBCXX_USE_CXX11_ABI=0",
-        "-mno-avx512fp16",  # avoid AVX512 FP16 header problems on GCC 12
+        "-mno-avx512fp16",
+        "-D_GLIBCXX_SIMD_ENABLE=0",        # <-- NEW FIX
     ],
     "nvcc": [
         "-O3",
         "-std=c++20",
         "--expt-relaxed-constexpr",
         "-Xcompiler=-fPIC",
-        "-Xcompiler=-mno-avx512fp16",  # same workaround on nvcc host side
+        "-Xcompiler=-mno-avx512fp16",
+        "-Xcompiler=-D_GLIBCXX_SIMD_ENABLE=0",    # <-- NEW FIX
         "-gencode=arch=compute_52,code=sm_52",
         "-D_GLIBCXX_USE_CXX11_ABI=0",
     ],
 }
 
+# -------------------------------------------------------------------
+# BuildExtension override (identical to your version)
+# -------------------------------------------------------------------
 
 class TorchCUDAExtensionBuilder(BuildExtension):
     """
@@ -128,9 +132,8 @@ class TorchCUDAExtensionBuilder(BuildExtension):
 
         super().build_extensions()
 
-
 # -------------------------------------------------------------------
-# Sources
+# Source files
 # -------------------------------------------------------------------
 
 sources = [
@@ -149,7 +152,7 @@ ext = CUDAExtension(
 )
 
 # -------------------------------------------------------------------
-# setup()
+# setup() call
 # -------------------------------------------------------------------
 
 setup(
