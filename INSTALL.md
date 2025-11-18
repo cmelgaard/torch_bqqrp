@@ -1,256 +1,163 @@
-# Installation Guide
+# Torch-BQRRP — GPU Build & Install Guide (CUDA Required)
 
-This project builds the `torch_bqrrp` PyTorch extension and depends on several C++ libraries:
+This repository builds a PyTorch extension that depends on:
+- Random123  
+- BLAS++  
+- LAPACK++  
+- RandBLAS  
+- RandLAPACK  
+- CUDA (mandatory)  
 
-- **Random123**
-- **BLAS++**
-- **LAPACK++**
-- **RandBLAS**
-- **RandLAPACK**
-- **(Optional) CUDA** for GPU kernels
+Everything is built locally inside `deps/`.  
+A single command performs a full install:
 
-All libraries are automatically cloned into `deps/src/` and installed into `deps/install/`.  
-Nothing is installed system-wide except basic compiler packages.
+```
+make install
+```
 
 ---
 
-# Repository Layout
+# 1. Requirements
 
-```text
+- Linux (Ubuntu recommended)
+- Python 3.10–3.12
+- PyTorch ≥ 2.5.0 (built with CUDA 12.1, recommended)
+- CUDA toolkit 12.0 or 12.1 installed
+- NVIDIA driver supporting CUDA ≥ 12.2
+- A GPU with compute capability ≥ **5.2** (GTX TITAN-X is OK)
+
+---
+
+# 2. Quick Start
+
+```
+git clone <your repo>
+cd torch_bqrrp
+make install
+```
+
+This will:
+1. Create `deps/`
+2. Compile all required dependencies
+3. Build the CUDA extension
+4. Install your package in editable mode
+
+---
+
+# 3. Repository Layout
+
+```
 torch_bqrrp/
 │
-├── Makefile
-├── install.sh
-├── INSTALL.md
-├── README.md
-├── setup.py
-├── lisao.py
+├── csrc/                  # C++/CUDA source
+├── torch_bqrrp/           # Python package
+│   ├── __init__.py
+│   └── bqrrp.py
 │
-├── torch_bqrrp/
-│   ├── bqrrp.py
-│   └── bqrrp*.so
+├── deps/
+│   ├── src/               # Full source clones
+│   └── install/           # Installed headers and libs
 │
-├── examples/
-│   ├── bqrrp_demo.py
-│   └── airbench94_lisao.py
-│
-└── deps/                 # auto-generated
-    ├── src/             # cloned C++ deps
-    └── install/         # built headers + libs
-```
-
-`deps/` is fully recreated by `install.sh`.
-
----
-
-# 1. Recommended Installation (Makefile)
-
-Most users should run:
-
-```bash
-make install
-```
-
-This:
-
-1. Installs required system packages (OpenBLAS, LAPACK, LAPACKE, compilers)
-2. Clones all C++ deps into `deps/src/`
-3. Builds and installs them into `deps/install/`
-4. Builds the PyTorch extension
-5. Runs `examples/bqrrp_demo.py` as a sanity check
-
----
-
-# 1.1 CPU-only Build
-
-```bash
-make install-cpu
-```
-
-This is equivalent to:
-
-```bash
-USE_CUDA=0 ./install.sh
-```
-
-CUDA is disabled; CPU-only kernels are compiled.
-
----
-
-# 1.2 Running Examples
-
-```bash
-make test
-```
-
-Runs:
-
-- `examples/bqrrp_demo.py`
-- `examples/airbench94_lisao.py`
-
----
-
-# 1.3 Cleaning
-
-```bash
-make clean-deps      # removes deps/src + deps/install
-make clean-build     # removes build artifacts
-make clean-all       # full reset
+├── install.sh             # Dependency installer
+├── setup.py               # PyTorch CUDA extension builder
+├── Makefile               # Defines make install/deps/clean
+└── install.md
 ```
 
 ---
 
-# 2. Python Virtual Environment (Recommended)
+# 4. Installing Python Environment
 
-Ubuntu 24.04+ uses PEP 668 (“externally managed”), which blocks global installs.  
-Use a virtual environment:
-
-```bash
+```
 python3 -m venv .venv
 source .venv/bin/activate
-
-pip install --upgrade pip setuptools wheel
-pip install torch torchvision
-```
-Possible fix: 
-```bash
-cd /home/brosef/repos/torch_bqqrp
-rm -rf .venv
-
-python3 -m venv .venv
-source .venv/bin/activate
-
-pip install --upgrade pip setuptools wheel
-pip install "numpy==2.3.5"
-# or a compatible torch + numpy combo:
-pip install --index-url https://download.pytorch.org/whl/cu121 torch torchvision
+pip install --upgrade pip wheel setuptools
+pip install torch --index-url https://download.pytorch.org/whl/cu121
 ```
 
-Activate it in every new terminal:
+---
 
-```bash
-source .venv/bin/activate
+# 5. Running the Full Build
+
 ```
-
-Now run:
-
-```bash
 make install
 ```
 
 ---
 
-# 3. CUDA Behavior (`USE_CUDA`)
+# 6. Cleaning Everything
 
-- Default: CUDA enabled (`USE_CUDA=1`)
-- Requires `nvcc` in PATH
-- BLAS++ uses cuBLAS
-- RandLAPACK builds GPU kernels
+```
+make clean
+make clean-deps
+```
 
-Force CPU-only:
+`clean-deps` removes the entire `deps/` tree.
 
-```bash
-USE_CUDA=0 make install
+---
+
+# 7. Dependency Notes
+
+### CUDA  
+PyTorch you installed is built with `CUDA 12.1`.  
+Your toolkit is CUDA 12.0 — this is *fine* because we use:
+- `CUDAHOSTCXX=g++-12`
+- `-Xcompiler=-mno-avx512fp16`
+- explicit arch `(compute_52)` for TITAN-X
+
+---
+
+# 8. Rebuilding Only the Extension
+
+```
+make build
 ```
 
 ---
 
-# 4. Verifying Installation
+# 9. Testing Import
 
-## BQRRP Demo
-
-```bash
-python3 examples/bqrrp_demo.py
 ```
-
-Runs a medium-size matrix through BQRRP.  
-If successful, your install is correct.
-
-## CIFAR-10 LISAO Example
-
-```bash
-python3 examples/airbench94_lisao.py
-```
-
-(Optional dataset dir:)
-
-```bash
-export CIFAR_DATA=./data
+python3 -c "import torch_bqrrp; print('BQRRP OK')"
 ```
 
 ---
 
-# 5. PyTorch Compatibility
+# 10. Troubleshooting
 
-### CUDA build:
-```bash
-pip install --index-url https://download.pytorch.org/whl/cu121 torch torchvision
+### Q: NVCC errors mentioning AVX512 FP16?  
+A: Your CPU supports AVX2 only. We disable AVX512 FP16 via:
+```
+-Xcompiler=-mno-avx512fp16
 ```
 
-### CPU-only:
-```bash
-pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision
+### Q: Link errors “cannot find -lRandBLAS or -lRandLAPACK”?  
+A: Your deps weren’t built:  
+Run:
 ```
-
-Verify installation:
-
-```bash
-python3 - << 'EOF'
-import torch, os
-print("Torch:", torch.__version__)
-print("CUDA available:", torch.cuda.is_available())
-EOF
-```
-
----
-
-# 6. Troubleshooting (Concise)
-
-### Missing `nvcc`
-```bash
-which nvcc
-```
-If not found → install CUDA or use CPU-only mode.
-
-### “externally managed environment”
-Means you installed without a venv.  
-Solution: create + activate a venv.
-
-### Shared library load errors
-```bash
-export LD_LIBRARY_PATH=$PWD/deps/install/lib:$LD_LIBRARY_PATH
-```
-
-### Rebuild from scratch
-```bash
-make clean-all
+make clean-deps
 make install
 ```
 
----
-
-# 7. Direct `install.sh` Usage (Optional)
-
-```bash
-USE_CUDA=1 ./install.sh     # default
-USE_CUDA=0 ./install.sh     # CPU-only
+### Q: PTX or “unsupported gpu architecture”?  
+A: TITAN-X = compute_52.  
+Your extension sets:
+```
+-gencode=arch=compute_52,code=sm_52
 ```
 
-We recommend using the Makefile instead.
+### Q: PyTorch complains about ABI?  
+A: You must keep:
+```
+-D_GLIBCXX_USE_CXX11_ABI=0
+```
 
 ---
 
-# 8. Reporting Issues
+# 11. Summary
 
-Include:
-
-- OS version  
-- CUDA version (if used)  
-- Python + PyTorch versions  
-- venv or system Python  
-- Exact command you ran  
-- Terminal logs
-
----
-
-# End of INSTALL.md
+- **Single command install:** `make install`  
+- Fully self-contained dependencies in `deps/`  
+- CUDA-compatible extension build  
+- Works with PyTorch 2.5.1 + CUDA 12.1  
+- Tested on compute capability **5.2**  
