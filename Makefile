@@ -9,7 +9,7 @@ deps:
 	@bash install.sh
 
 clean-deps:
-	rm -rf deps/src deps/install
+	rm -rf deps
 
 ###########################################
 # Build Python Extension
@@ -26,5 +26,3 @@ clean:
 	find . -name "*.so" -delete
 
 clean-all: clean clean-deps
-
-.PHONY: all deps clean-deps build install clean
