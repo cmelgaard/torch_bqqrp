@@ -16,6 +16,7 @@ INCLUDE_DIRS = [
     str(DEPS_INSTALL / "include"),
     str(DEPS_INSTALL / "include" / "RandLAPACK"),
     str(DEPS_INSTALL / "include" / "RandLAPACK" / "drivers"),
+    str(DEPS_INSTALL / "include" / "RandLAPACK" / "misc"),
 ]
 
 LIBRARY_DIRS = [str(DEPS_INSTALL / "lib")]
@@ -64,6 +65,7 @@ else:
 
 ExtensionClass = CUDAExtension if use_cuda else CppExtension
 
+
 # -----------------------------------------------------------------------------
 # Sources and compile flags
 # -----------------------------------------------------------------------------
@@ -89,6 +91,7 @@ ext_modules = [
         extra_compile_args=extra_compile_args,
     )
 ]
+
 
 # -----------------------------------------------------------------------------
 # Setup
