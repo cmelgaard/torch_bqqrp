@@ -212,12 +212,15 @@ export LIBRARY_PATH="$DEPS_INSTALL/lib:${LIBRARY_PATH:-}"
 export CPATH="$DEPS_INSTALL/include:${CPATH:-}"
 
 # ============================================================
-# 9. Build torch_bqrrp extension
+# 9. Build torch_bqrrp extension (via pip, no build isolation)
 # ============================================================
 
-echo "[7/7] Building torch_bqrrp extension..."
+echo "[7/7] Building torch_bqrrp extension (editable install)..."
 cd "$REPO_ROOT"
-python3 setup.py develop
+
+# We *must* avoid PEP 517 build isolation here because setup.py imports torch.
+# This uses the current venv (where torch is already installed).
+python3 -m pip install --no-build-isolation -e .
 
 echo "Running examples/bqrrp_demo.py to verify..."
 python3 examples/bqrrp_demo.py
