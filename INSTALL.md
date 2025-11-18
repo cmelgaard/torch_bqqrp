@@ -112,6 +112,19 @@ source .venv/bin/activate
 pip install --upgrade pip setuptools wheel
 pip install torch torchvision
 ```
+Possible fix: 
+```bash
+cd /home/brosef/repos/torch_bqqrp
+rm -rf .venv
+
+python3 -m venv .venv
+source .venv/bin/activate
+
+pip install --upgrade pip setuptools wheel
+pip install "numpy==2.3.5"
+# or a compatible torch + numpy combo:
+pip install --index-url https://download.pytorch.org/whl/cu121 torch torchvision
+```
 
 Activate it in every new terminal:
 
