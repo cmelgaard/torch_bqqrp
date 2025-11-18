@@ -5,44 +5,53 @@ from setuptools import setup, find_packages
 import torch
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension, CppExtension
 
-
-# -----------------------------------------------------------------------------
-# Paths: repo root + deps/install
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Paths: repo root and deps/ tree (populated by install.sh)
+# ---------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent
 DEPS_INSTALL = ROOT / "deps" / "install"
+INCLUDE_ROOT = DEPS_INSTALL / "include"
 
+# RandBLAS/RandLAPACK layout after install.sh:
+#   include/RandBLAS.hh
+#   include/RandLAPACK/drivers/rl_bqrrp.hh
+#   include/RandLAPACK/drivers/rl_bqrrp_gpu.hh
+#   include/RandLAPACK/misc/rl_util.hh
+#   include/RandLAPACK/gpu_functions/rl_cuda_macros.hh
 INCLUDE_DIRS = [
-    str(DEPS_INSTALL / "include"),
-    str(DEPS_INSTALL / "include" / "RandLAPACK"),
-    str(DEPS_INSTALL / "include" / "RandLAPACK" / "drivers"),
-    str(DEPS_INSTALL / "include" / "RandLAPACK" / "misc"),
+    str(INCLUDE_ROOT),                            # RandBLAS.hh
+    str(INCLUDE_ROOT / "RandLAPACK"),             # base RandLAPACK headers
+    str(INCLUDE_ROOT / "RandLAPACK" / "drivers"),
+    str(INCLUDE_ROOT / "RandLAPACK" / "misc"),
+    str(INCLUDE_ROOT / "RandLAPACK" / "gpu_functions"),
 ]
 
-LIBRARY_DIRS = [str(DEPS_INSTALL / "lib")]
+LIBRARY_DIRS = [
+    str(DEPS_INSTALL / "lib"),
+]
 
 LIBRARIES = [
     "RandLAPACK",
     "RandBLAS",
-    # RandLAPACK should already be linked against lapackpp/blaspp/BLAS/LAPACKE
+    "blaspp",
+    "lapackpp",
 ]
 
 
-# -----------------------------------------------------------------------------
-# Decide whether to build with CUDA
-#   - USE_CUDA=0   -> force CPU-only
-#   - USE_CUDA=1   -> try CUDA if available AND bqrrp_gpu.cu exists
-#   - USE_CUDA unset -> default to 1 (try CUDA)
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# CUDA toggle: only USE_CUDA (keep it simple)
+#   USE_CUDA unset or "1" -> try to build CUDA extension
+#   USE_CUDA = "0"        -> force CPU-only
+# ---------------------------------------------------------------------
 def want_cuda() -> bool:
-    env = os.environ.get("USE_CUDA", "1")  # default: CUDA on
+    env = os.environ.get("USE_CUDA", "1")
     if env == "0":
-        # user explicitly requested CPU-only
         return False
 
-    # If torch doesn't have CUDA, no point trying
+    # Optional safety: if torch doesn't have CUDA, fall back to CPU
     try:
         if not torch.cuda.is_available():
+            print("torch.cuda.is_available() is False -> building CPU-only extension")
             return False
     except Exception:
         return False
@@ -50,56 +59,59 @@ def want_cuda() -> bool:
     return True
 
 
-cuda_source = ROOT / "csrc" / "bqrrp_gpu.cu"
-has_cuda_source = cuda_source.is_file()
-
-use_cuda = want_cuda() and has_cuda_source
-
-if use_cuda:
-    print("** Building torch_bqrrp with CUDA support (bqrrp_gpu.cu) **")
-else:
-    if not has_cuda_source:
-        print("** Building torch_bqrrp in CPU-only mode (no csrc/bqrrp_gpu.cu found) **")
-    else:
-        print("** Building torch_bqrrp in CPU-only mode (CUDA disabled or unavailable) **")
-
-ExtensionClass = CUDAExtension if use_cuda else CppExtension
-
-
-# -----------------------------------------------------------------------------
-# Sources and compile flags
-# -----------------------------------------------------------------------------
-cpu_sources = [
-    "csrc/bqrrp_binding.cpp",
-    "csrc/bqrrp_cpu.cpp",
+# RandBLAS/RandLAPACK use C++20 concepts when available.
+# If we compile as C++17, they fall back to macros like SignedInteger/SparseMatrix
+# which conflict with `using` declarations and cause the errors you saw.
+CXX_FLAGS = [
+    "-O3",
+    "-std=c++20",
+    "-fopenmp",
+    "-DTORCH_API_INCLUDE_EXTENSION_H",
+    "-D_GLIBCXX_USE_CXX11_ABI=0",
 ]
 
-sources = list(cpu_sources)
-extra_compile_args = {"cxx": ["-O3"]}
+NVCC_FLAGS = [
+    "-O3",
+    "-std=c++20",
+    "--expt-relaxed-constexpr",
+]
 
-if use_cuda:
-    sources.append("csrc/bqrrp_gpu.cu")
-    extra_compile_args["nvcc"] = ["-O3"]
 
-ext_modules = [
-    ExtensionClass(
+def make_extension():
+    use_cuda = want_cuda()
+    cpu_sources = [
+        "csrc/bqrrp_cpu.cpp",
+        "csrc/bqrrp_binding.cpp",
+    ]
+
+    if use_cuda:
+        print("** Building torch_bqrrp with CUDA support (csrc/bqrrp_gpu.cu) **")
+        sources = cpu_sources + ["csrc/bqrrp_gpu.cu"]
+        Extension = CUDAExtension
+        extra_compile_args = {
+            "cxx": CXX_FLAGS,
+            "nvcc": NVCC_FLAGS,
+        }
+    else:
+        print("** Building torch_bqrrp in CPU-only mode **")
+        sources = cpu_sources
+        Extension = CppExtension
+        extra_compile_args = CXX_FLAGS
+
+    return Extension(
         name="torch_bqrrp._bqrrp",
-        sources=sources,
+        sources=[str(ROOT / s) for s in sources],
         include_dirs=INCLUDE_DIRS,
-        libraries=LIBRARIES,
         library_dirs=LIBRARY_DIRS,
+        libraries=LIBRARIES,
         extra_compile_args=extra_compile_args,
     )
-]
 
 
-# -----------------------------------------------------------------------------
-# Setup
-# -----------------------------------------------------------------------------
 setup(
     name="torch_bqrrp",
     version="0.1.0",
     packages=find_packages(),
-    ext_modules=ext_modules,
+    ext_modules=[make_extension()],
     cmdclass={"build_ext": BuildExtension},
 )
