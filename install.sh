@@ -15,16 +15,26 @@ USE_CUDA=${USE_CUDA:-1}
 REPO_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DEPS_SRC="$REPO_ROOT/deps/src"
 DEPS_INSTALL="$REPO_ROOT/deps/install"
-NPROC=$(nproc)
+
+# Number of parallel build jobs
+if command -v nproc >/dev/null 2>&1; then
+  NPROC=$(nproc)
+elif command -v sysctl >/dev/null 2>&1; then
+  NPROC=$(sysctl -n hw.logicalcpu || echo 4)
+else
+  NPROC=4
+fi
 
 mkdir -p "$DEPS_SRC" "$DEPS_INSTALL"
 
 echo "============================================================"
-echo " torch_bqrrp install"
+echo " torch_bqrrp dependency installer"
+echo "------------------------------------------------------------"
 echo " REPO_ROOT    = $REPO_ROOT"
 echo " DEPS_SRC     = $DEPS_SRC"
 echo " DEPS_INSTALL = $DEPS_INSTALL"
 echo " USE_CUDA     = $USE_CUDA"
+echo " NPROC        = $NPROC"
 echo "============================================================"
 
 # ============================================================
@@ -45,7 +55,8 @@ sudo apt install -y \
   python3-setuptools \
   python3-wheel \
   libopenblas-dev \
-  liblapack-dev
+  liblapack-dev \
+  liblapacke-dev
 
 # NOTE:
 # We DO NOT upgrade pip here to avoid PEP 668 "externally-managed"
@@ -53,20 +64,16 @@ sudo apt install -y \
 # (and torch install) yourself, e.g. via venv/conda.
 
 # ============================================================
-# 2. CUDA requirement check
+# 2. CUDA detection and CMake flags
 # ============================================================
 
 CUDA_CMAKE_FLAGS_BLASPP=""
 CUDA_CMAKE_FLAGS_RANDLAPACK=""
 
-if [[ "$USE_CUDA" -eq 0 ]]; then
-  echo "[CUDA] CPU-only mode selected (USE_CUDA=0)."
-  CUDA_CMAKE_FLAGS_BLASPP="-DBLASPP_ENABLE_CUBLAS=OFF"
-  CUDA_CMAKE_FLAGS_RANDLAPACK="-DRequireCUDA=OFF"
-else
-  echo "[CUDA] CUDA mode REQUIRED (USE_CUDA != 0)."
+if [[ "$USE_CUDA" -eq 1 ]]; then
+  echo "[CUDA] CUDA mode requested (USE_CUDA=1)."
   if ! command -v nvcc >/dev/null 2>&1; then
-    echo "ERROR: CUDA was requested (USE_CUDA != 0) but 'nvcc' is not in PATH."
+    echo "ERROR: nvcc not found in PATH, but USE_CUDA=1."
     echo "       Either install CUDA, or rerun in CPU-only mode:"
     echo "           USE_CUDA=0 ./install.sh"
     exit 1
@@ -75,6 +82,8 @@ else
   nvcc --version || true
   CUDA_CMAKE_FLAGS_BLASPP="-DBLASPP_ENABLE_CUBLAS=ON"
   CUDA_CMAKE_FLAGS_RANDLAPACK="-DRequireCUDA=ON"
+else
+  echo "[CUDA] CPU-only mode (USE_CUDA=0)."
 fi
 
 # ============================================================
@@ -119,12 +128,14 @@ echo "[Random123] Installed headers to $DEPS_INSTALL/include/Random123"
 echo "[3/7] Installing BLAS++..."
 clone_if_missing "https://github.com/icl-utk-edu/blaspp.git" \
                  "$DEPS_SRC/blaspp"
+
 cd "$DEPS_SRC/blaspp"
 mkdir -p build && cd build
 
 cmake .. \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX="$DEPS_INSTALL" \
+  -Dblas_int=int64 \
   $CUDA_CMAKE_FLAGS_BLASPP
 
 make -j"$NPROC"
@@ -137,6 +148,7 @@ make install
 echo "[4/7] Installing LAPACK++..."
 clone_if_missing "https://github.com/icl-utk-edu/lapackpp.git" \
                  "$DEPS_SRC/lapackpp"
+
 cd "$DEPS_SRC/lapackpp"
 mkdir -p build && cd build
 
@@ -155,12 +167,14 @@ make install
 echo "[5/7] Installing RandBLAS..."
 clone_if_missing "https://github.com/BallisticLA/RandBLAS.git" \
                  "$DEPS_SRC/RandBLAS"
+
 cd "$DEPS_SRC/RandBLAS"
 mkdir -p build && cd build
 
 cmake .. \
   -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_INSTALL_PREFIX="$DEPS_INSTALL"
+  -DCMAKE_INSTALL_PREFIX="$DEPS_INSTALL" \
+  -DBLASPP_DIR="$DEPS_INSTALL/lib/cmake/blaspp"
 
 make -j"$NPROC"
 make install
@@ -170,12 +184,8 @@ make install
 # ============================================================
 
 echo "[6/7] Installing RandLAPACK..."
-if [[ -d "$DEPS_SRC/RandLAPACK/.git" ]]; then
-  echo "[git] Using existing RandLAPACK at $DEPS_SRC/RandLAPACK"
-else
-  git clone --recursive https://github.com/BallisticLA/RandLAPACK.git \
-            "$DEPS_SRC/RandLAPACK"
-fi
+clone_if_missing "https://github.com/BallisticLA/RandLAPACK.git" \
+                 "$DEPS_SRC/RandLAPACK"
 
 cd "$DEPS_SRC/RandLAPACK"
 mkdir -p build && cd build
