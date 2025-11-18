@@ -27,14 +27,15 @@ if command -v apt-get >/dev/null 2>&1; then
       python3-wheel \
       libopenblas-dev \
       liblapack-dev \
-      liblapacke-dev
+      liblapacke-dev \
+      libomp-dev
 else
     echo "[install.sh] WARNING: apt-get not found."
     echo "  Please ensure the following are installed manually:"
     echo "    - build-essential (gcc, g++)"
     echo "    - cmake, git, ninja-build, wget, curl"
     echo "    - python3-dev, python3-pip, setuptools, wheel"
-    echo "    - libopenblas-dev, liblapack-dev, liblapacke-dev"
+    echo "    - libopenblas-dev, liblapack-dev, liblapacke-dev, libomp-dev"
 fi
 
 ###############################
@@ -50,7 +51,7 @@ fi
 # Install Random123 (header-only)
 ###############################
 cd "$DEPS_SRC"
-if [ ! -d "$DEPS_SRC/Random123" ]; then
+if [ ! -d "$DEPS_SRC/Random123/.git" ]; then
     echo "[install.sh] Cloning Random123..."
     git clone https://github.com/DEShawResearch/random123.git Random123
 else
@@ -97,9 +98,9 @@ cd "$DEPS_SRC/lapackpp/build"
 
 cmake .. \
   -DCMAKE_INSTALL_PREFIX="$DEPS_INSTALL" \
-  -DLAPACKPP_BUILD_TESTS=OFF \
   -DCMAKE_CXX_STANDARD=20 \
-  -DBLASPP_DIR="$DEPS_INSTALL/lib/cmake/blaspp"
+  -DBLASPP_DIR="$DEPS_INSTALL/lib/cmake/blaspp" \
+  -DLAPACKPP_BUILD_TESTS=OFF
 
 make -j"$NPROC" || make
 make install

@@ -25,22 +25,33 @@ os.environ.setdefault("CXX", "g++-12")
 ROOT = Path(__file__).parent.resolve()
 DEPS_INSTALL = ROOT / "deps" / "install"
 DEPS_SRC = ROOT / "deps" / "src"
-DEPS_SRC_RL = DEPS_SRC / "RandLAPACK"
+DEPS_SRC_RL = DEPS_SRC / "RandLAPACK"  # for rl_cuda_kernels.cuh, etc.
+
 
 def ensure_path(p: Path, what: str) -> str:
     if not p.exists():
         raise RuntimeError(f"{what} not found: {p}")
     return str(p)
 
-# Core include dirs
+
+# Core include dirs — **this list is the important part**
 include_dirs = [
     ensure_path(DEPS_INSTALL / "include", "deps/install/include"),
     # RandBLAS / RandLAPACK hierarchy
     ensure_path(DEPS_INSTALL / "include" / "RandBLAS", "RandBLAS headers"),
     ensure_path(DEPS_INSTALL / "include" / "RandLAPACK", "RandLAPACK headers"),
-    ensure_path(DEPS_INSTALL / "include" / "RandLAPACK" / "drivers", "RandLAPACK drivers"),
-    ensure_path(DEPS_INSTALL / "include" / "RandLAPACK" / "misc", "RandLAPACK misc"),
-    ensure_path(DEPS_INSTALL / "include" / "RandLAPACK" / "gpu_functions", "RandLAPACK gpu_functions"),
+    ensure_path(
+        DEPS_INSTALL / "include" / "RandLAPACK" / "drivers",
+        "RandLAPACK drivers (rl_bqrrp.hh, rl_bqrrp_gpu.hh)",
+    ),
+    ensure_path(
+        DEPS_INSTALL / "include" / "RandLAPACK" / "misc",
+        "RandLAPACK misc headers",
+    ),
+    ensure_path(
+        DEPS_INSTALL / "include" / "RandLAPACK" / "gpu_functions",
+        "RandLAPACK gpu_functions headers",
+    ),
     # Random123 + BLAS++ / LAPACK++
     ensure_path(DEPS_INSTALL / "include" / "Random123", "Random123 headers"),
     ensure_path(DEPS_INSTALL / "include" / "blas", "BLAS++ headers"),
@@ -65,7 +76,7 @@ libraries = [
 ]
 
 # -------------------------------------------------------------------
-# Compiler flags — **THIS IS THE FIX**
+# Compiler flags (with AVX512 FP16 workaround)
 # -------------------------------------------------------------------
 
 extra_compile_args = {
@@ -74,35 +85,35 @@ extra_compile_args = {
         "-fopenmp",
         "-std=c++20",
         "-D_GLIBCXX_USE_CXX11_ABI=0",
-        "-mno-avx512fp16",
-        "-D_GLIBCXX_SIMD_ENABLE=0",        # <-- NEW FIX
+        "-D_GLIBCXX_SIMD_ENABLE=0",
+        "-mno-avx512fp16",  # avoid AVX512 FP16 header problems on GCC 12
     ],
     "nvcc": [
         "-O3",
         "-std=c++20",
         "--expt-relaxed-constexpr",
         "-Xcompiler=-fPIC",
+        # same AVX512 FP16 workaround on nvcc host side
         "-Xcompiler=-mno-avx512fp16",
-        "-Xcompiler=-D_GLIBCXX_SIMD_ENABLE=0",    # <-- NEW FIX
+        "-Xcompiler=-D_GLIBCXX_SIMD_ENABLE=0",
+        # your TITAN X is compute capability 5.2
         "-gencode=arch=compute_52,code=sm_52",
         "-D_GLIBCXX_USE_CXX11_ABI=0",
     ],
 }
 
-# -------------------------------------------------------------------
-# BuildExtension override (identical to your version)
-# -------------------------------------------------------------------
 
 class TorchCUDAExtensionBuilder(BuildExtension):
     """
     Custom BuildExtension that:
       * imports torch lazily
       * adds torch's include + lib dirs
-      * sets runtime_library_dirs so deps/install/lib is on the loader path
+      * sets runtime_library_dirs so deps/install/lib and torch's lib are found
       * sets TORCH_CUDA_ARCH_LIST based on the actual GPU (if available)
     """
 
     def build_extensions(self):
+        # Import torch only here, not at module import time
         import torch
 
         torch_includes = torch.utils.cpp_extension.include_paths()
@@ -119,8 +130,9 @@ class TorchCUDAExtensionBuilder(BuildExtension):
 
             # Runtime search path so the extension can find shared libs at import
             rpaths = list(getattr(ext, "runtime_library_dirs", []) or [])
-            if str(DEPS_INSTALL / "lib") not in rpaths:
-                rpaths.append(str(DEPS_INSTALL / "lib"))
+            dl = str(DEPS_INSTALL / "lib")
+            if dl not in rpaths:
+                rpaths.append(dl)
             if str(torch_lib_dir) not in rpaths:
                 rpaths.append(str(torch_lib_dir))
             ext.runtime_library_dirs = rpaths
@@ -132,8 +144,9 @@ class TorchCUDAExtensionBuilder(BuildExtension):
 
         super().build_extensions()
 
+
 # -------------------------------------------------------------------
-# Source files
+# Sources
 # -------------------------------------------------------------------
 
 sources = [
@@ -152,7 +165,7 @@ ext = CUDAExtension(
 )
 
 # -------------------------------------------------------------------
-# setup() call
+# setup()
 # -------------------------------------------------------------------
 
 setup(
