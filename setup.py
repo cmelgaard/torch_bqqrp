@@ -31,7 +31,7 @@ def ensure_path(p: Path, what: str) -> str:
     return str(p)
 
 
-# Core include dirs – this is the important part
+# Core include dirs – RandLAPACK, RandBLAS, Random123, BLAS++, LAPACK++
 include_dirs = [
     ensure_path(DEPS_INSTALL / "include", "deps/install/include"),
     # RandBLAS / RandLAPACK hierarchy
@@ -64,7 +64,7 @@ libraries = [
 ]
 
 # -------------------------------------------------------------------
-# Compiler flags (with AVX512 FP16 + libstdc++ SIMD workarounds)
+# Compiler flags (with libstdc++ SIMD workaround; NO avx512fp16 flag)
 # -------------------------------------------------------------------
 
 extra_compile_args = {
@@ -73,19 +73,17 @@ extra_compile_args = {
         "-fopenmp",
         "-std=c++20",
         "-D_GLIBCXX_USE_CXX11_ABI=0",
-        "-mno-avx512fp16",          # avoid AVX512 FP16 intrinsics
-        "-D_GLIBCXX_SIMD_ENABLE=0", # disable libstdc++ experimental SIMD
+        "-D_GLIBCXX_SIMD_ENABLE=0",  # disable libstdc++ experimental SIMD
     ],
     "nvcc": [
         "-O3",
         "-std=c++20",
         "--expt-relaxed-constexpr",
         "-Xcompiler=-fPIC",
-        "-Xcompiler=-mno-avx512fp16",
         "-Xcompiler=-D_GLIBCXX_SIMD_ENABLE=0",
         "-gencode=arch=compute_52,code=sm_52",
         "-D_GLIBCXX_USE_CXX11_ABI=0",
-        # *** KEY: force nvcc to use g++-11 as host, not gcc/g++-12 ***
+        # *** KEY: force nvcc to use g++-11 as host ***
         "-ccbin",
         "g++-11",
     ],
