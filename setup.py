@@ -25,20 +25,38 @@ LIBRARIES = [
 # -----------------------------------------------------------------------------
 # Decide whether to build with CUDA
 #   - USE_CUDA=0   -> force CPU-only
-#   - USE_CUDA!=0  -> try CUDA, fall back to CPU-only if not available
+#   - USE_CUDA=1   -> try CUDA if available AND bqrrp_gpu.cu exists
+#   - USE_CUDA unset -> default to 1 (try CUDA)
 # -----------------------------------------------------------------------------
 def want_cuda() -> bool:
     env = os.environ.get("USE_CUDA", "1")  # default: CUDA on
     if env == "0":
+        # user explicitly requested CPU-only
         return False
 
+    # If torch doesn't have CUDA, no point trying
     try:
-        return torch.cuda.is_available()
+        if not torch.cuda.is_available():
+            return False
     except Exception:
         return False
 
+    return True
 
-use_cuda = want_cuda()
+
+cuda_source = ROOT / "csrc" / "bqrrp_gpu.cu"
+has_cuda_source = cuda_source.is_file()
+
+use_cuda = want_cuda() and has_cuda_source
+
+if use_cuda:
+    print("** Building torch_bqrrp with CUDA support (bqrrp_gpu.cu) **")
+else:
+    if not has_cuda_source:
+        print("** Building torch_bqrrp in CPU-only mode (no csrc/bqrrp_gpu.cu found) **")
+    else:
+        print("** Building torch_bqrrp in CPU-only mode (CUDA disabled or unavailable) **")
+
 ExtensionClass = CUDAExtension if use_cuda else CppExtension
 
 # -----------------------------------------------------------------------------
@@ -49,17 +67,12 @@ cpu_sources = [
     "csrc/bqrrp_cpu.cpp",
 ]
 
-cuda_sources = [
-    "csrc/bqrrp_cuda.cu",
-]
-
 sources = list(cpu_sources)
 extra_compile_args = {"cxx": ["-O3"]}
 
 if use_cuda:
-    sources += cuda_sources
+    sources.append("csrc/bqrrp_gpu.cu")
     extra_compile_args["nvcc"] = ["-O3"]
-
 
 ext_modules = [
     ExtensionClass(
