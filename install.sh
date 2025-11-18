@@ -5,10 +5,10 @@ set -euo pipefail
 # Config
 # ============================================================
 
-# Default: REQUIRE CUDA unless explicitly disabled.
-#   - USE_CUDA unset  → treated as 1 (CUDA required)
-#   - USE_CUDA=1      → CUDA required
-#   - USE_CUDA=0      → CPU-only build
+# Default: require CUDA unless explicitly disabled.
+#   - USE_CUDA unset  -> treated as 1 (CUDA required)
+#   - USE_CUDA=1      -> CUDA required
+#   - USE_CUDA=0      -> CPU-only build
 USE_CUDA=${USE_CUDA:-1}
 
 # Repo root = folder where this script lives
@@ -58,11 +58,6 @@ sudo apt install -y \
   liblapack-dev \
   liblapacke-dev
 
-# NOTE:
-# We DO NOT upgrade pip here to avoid PEP 668 "externally-managed"
-# issues on newer Ubuntu. You should manage your Python environment
-# (and torch install) yourself, e.g. via venv/conda.
-
 # ============================================================
 # 2. CUDA detection and CMake flags
 # ============================================================
@@ -70,10 +65,14 @@ sudo apt install -y \
 CUDA_CMAKE_FLAGS_BLASPP=""
 CUDA_CMAKE_FLAGS_RANDLAPACK=""
 
-if [[ "$USE_CUDA" -eq 1 ]]; then
-  echo "[CUDA] CUDA mode requested (USE_CUDA=1)."
+if [[ "$USE_CUDA" -eq 0 ]]; then
+  echo "[CUDA] CPU-only mode selected (USE_CUDA=0)."
+  CUDA_CMAKE_FLAGS_BLASPP="-DBLASPP_ENABLE_CUBLAS=OFF"
+  CUDA_CMAKE_FLAGS_RANDLAPACK="-DRequireCUDA=OFF"
+else
+  echo "[CUDA] CUDA mode REQUIRED (USE_CUDA != 0)."
   if ! command -v nvcc >/dev/null 2>&1; then
-    echo "ERROR: nvcc not found in PATH, but USE_CUDA=1."
+    echo "ERROR: CUDA was requested (USE_CUDA != 0) but 'nvcc' is not in PATH."
     echo "       Either install CUDA, or rerun in CPU-only mode:"
     echo "           USE_CUDA=0 ./install.sh"
     exit 1
@@ -82,8 +81,6 @@ if [[ "$USE_CUDA" -eq 1 ]]; then
   nvcc --version || true
   CUDA_CMAKE_FLAGS_BLASPP="-DBLASPP_ENABLE_CUBLAS=ON"
   CUDA_CMAKE_FLAGS_RANDLAPACK="-DRequireCUDA=ON"
-else
-  echo "[CUDA] CPU-only mode (USE_CUDA=0)."
 fi
 
 # ============================================================
@@ -180,7 +177,7 @@ make -j"$NPROC"
 make install
 
 # ============================================================
-# 7. RandLAPACK
+# 7. RandLAPACK (with internal RandBLAS submodule)
 # ============================================================
 
 echo "[6/7] Installing RandLAPACK..."
@@ -188,6 +185,10 @@ clone_if_missing "https://github.com/BallisticLA/RandLAPACK.git" \
                  "$DEPS_SRC/RandLAPACK"
 
 cd "$DEPS_SRC/RandLAPACK"
+
+# Ensure the RandBLAS submodule inside RandLAPACK is present
+git submodule update --init --recursive
+
 mkdir -p build && cd build
 
 cmake .. \
