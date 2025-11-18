@@ -4,7 +4,7 @@
 #include <tuple>
 
 // RandLAPACK CPU driver
-#include "RandLAPACK/drivers/rl_bqrrp.hh"   // RandLAPACK::BQRRP<T,RNG>
+#include "rl_bqrrp.hh"     // RandLAPACK::BQRRP<T,RNG>
 #include <RandBLAS.hh>
 #include <Random123/philox.h>
 

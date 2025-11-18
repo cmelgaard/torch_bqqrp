@@ -23,15 +23,32 @@ os.environ.setdefault("CXX", "g++-12")
 
 ROOT = Path(__file__).parent.resolve()
 DEPS_INSTALL = ROOT / "deps" / "install"
+DEPS_SRC = ROOT / "deps" / "src"
+DEPS_SRC_RL = DEPS_SRC / "RandLAPACK"  # for rl_cuda_kernels.cuh
 
-INCLUDE_BASE   = str(DEPS_INSTALL / "include")
-RANDLAPACK_DIR = str(DEPS_INSTALL / "include" / "RandLAPACK")
-RANDBLAS_DIR   = str(DEPS_INSTALL / "include" / "RandBLAS")
-BLAS_DIR       = str(DEPS_INSTALL / "include" / "blas")
-LAPACK_DIR     = str(DEPS_INSTALL / "include" / "lapack")
-RAND123_DIR    = str(DEPS_INSTALL / "include" / "Random123")
+def ensure_path(p: Path, what: str):
+    if not p.exists():
+        raise RuntimeError(f"{what} not found: {p}")
+    return str(p)
 
-LIB_DIR = str(DEPS_INSTALL / "lib")
+# Core include dirs — this is the piece you pasted
+include_dirs = [
+    ensure_path(DEPS_INSTALL / "include", "deps/install/include"),
+    # RandBLAS / RandLAPACK hierarchy
+    ensure_path(DEPS_INSTALL / "include" / "RandBLAS", "RandBLAS headers"),
+    ensure_path(DEPS_INSTALL / "include" / "RandLAPACK", "RandLAPACK headers"),
+    ensure_path(DEPS_INSTALL / "include" / "RandLAPACK" / "drivers", "RandLAPACK drivers"),
+    ensure_path(DEPS_INSTALL / "include" / "RandLAPACK" / "misc", "RandLAPACK misc"),
+    ensure_path(DEPS_INSTALL / "include" / "RandLAPACK" / "gpu_functions", "RandLAPACK gpu_functions"),
+    # Random123 + BLAS++ / LAPACK++
+    ensure_path(DEPS_INSTALL / "include" / "Random123", "Random123 headers"),
+    ensure_path(DEPS_INSTALL / "include" / "blas", "BLAS++ headers"),
+    ensure_path(DEPS_INSTALL / "include" / "lapack", "LAPACK++ headers"),
+    # Needed so that RandLAPACK/gpu_functions/rl_cuda_kernels.cuh resolves
+    ensure_path(DEPS_SRC_RL, "RandLAPACK source tree (for rl_cuda_kernels.cuh)"),
+]
+
+LIB_DIR = ensure_path(DEPS_INSTALL / "lib", "deps/install/lib")
 
 # -------------------------------------------------------------------
 # Custom BuildExtension: import torch *only* inside build_extensions
@@ -46,16 +63,8 @@ class TorchCUDAExtensionBuilder(BuildExtension):
         torch_includes = torch.utils.cpp_extension.include_paths()
 
         for ext in self.extensions:
-            # Core deps includes
-            ext.include_dirs.extend([
-                INCLUDE_BASE,
-                RANDLAPACK_DIR,
-                RANDBLAS_DIR,
-                BLAS_DIR,
-                LAPACK_DIR,
-                RAND123_DIR,
-                *torch_includes,
-            ])
+            # Core deps includes + torch includes
+            ext.include_dirs.extend(include_dirs + torch_includes)
 
             # Library dirs: our deps + torch libs
             ext.library_dirs.extend([
@@ -111,7 +120,6 @@ extra_compile_args = {
 
 # -------------------------------------------------------------------
 # Libraries to link against
-#   NOTE: we KEEP RandLAPACK / RandBLAS to avoid regressing.
 # -------------------------------------------------------------------
 
 libraries = [
@@ -132,8 +140,8 @@ libraries = [
 ext = CUDAExtension(
     name="torch_bqrrp._bqrrp",
     sources=sources,
-    include_dirs=[INCLUDE_BASE],  # extended in build_extensions
-    library_dirs=[LIB_DIR],       # extended in build_extensions
+    include_dirs=[],       # populated in build_extensions
+    library_dirs=[],       # populated in build_extensions
     libraries=libraries,
     extra_compile_args=extra_compile_args,
 )

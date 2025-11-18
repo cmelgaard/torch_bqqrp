@@ -3,7 +3,7 @@
 
 #include <tuple>
 
-#include "RandLAPACK/drivers/rl_bqrrp_gpu.hh"  // RandLAPACK::BQRRP_GPU<T,RNG>
+#include "rl_bqrrp_gpu.hh"  // RandLAPACK::BQRRP_GPU<T,RNG>
 #include "rl_blaspp.hh"
 #include <RandBLAS.hh>
 #include <Random123/philox.h>
