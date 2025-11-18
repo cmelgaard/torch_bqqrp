@@ -7,19 +7,16 @@ from setuptools import setup
 from torch.utils.cpp_extension import CUDAExtension, BuildExtension
 
 # -------------------------------------------------------------------
-# Environment: force CUDA + safe host compiler
+# Hard-set compilers: FORCE gcc/g++-11 everywhere
 # -------------------------------------------------------------------
 
-# GPU build is required
-os.environ.setdefault("USE_CUDA", "1")
-
-# Use GCC/G++ 12 as host for nvcc (CUDA 12.x prefers <= 12)
-os.environ.setdefault("CUDAHOSTCXX", "g++-12")
-os.environ.setdefault("CC", "gcc-12")
-os.environ.setdefault("CXX", "g++-12")
+os.environ["USE_CUDA"] = "1"
+os.environ["CC"] = "gcc-11"
+os.environ["CXX"] = "g++-11"
+os.environ["CUDAHOSTCXX"] = "g++-11"
 
 # -------------------------------------------------------------------
-# Paths for dependencies
+# Paths
 # -------------------------------------------------------------------
 
 ROOT = Path(__file__).parent.resolve()
@@ -34,24 +31,15 @@ def ensure_path(p: Path, what: str) -> str:
     return str(p)
 
 
-# Core include dirs — **this list is the important part**
+# Core include dirs – this is the important part
 include_dirs = [
     ensure_path(DEPS_INSTALL / "include", "deps/install/include"),
     # RandBLAS / RandLAPACK hierarchy
     ensure_path(DEPS_INSTALL / "include" / "RandBLAS", "RandBLAS headers"),
     ensure_path(DEPS_INSTALL / "include" / "RandLAPACK", "RandLAPACK headers"),
-    ensure_path(
-        DEPS_INSTALL / "include" / "RandLAPACK" / "drivers",
-        "RandLAPACK drivers (rl_bqrrp.hh, rl_bqrrp_gpu.hh)",
-    ),
-    ensure_path(
-        DEPS_INSTALL / "include" / "RandLAPACK" / "misc",
-        "RandLAPACK misc headers",
-    ),
-    ensure_path(
-        DEPS_INSTALL / "include" / "RandLAPACK" / "gpu_functions",
-        "RandLAPACK gpu_functions headers",
-    ),
+    ensure_path(DEPS_INSTALL / "include" / "RandLAPACK" / "drivers", "RandLAPACK drivers"),
+    ensure_path(DEPS_INSTALL / "include" / "RandLAPACK" / "misc", "RandLAPACK misc"),
+    ensure_path(DEPS_INSTALL / "include" / "RandLAPACK" / "gpu_functions", "RandLAPACK gpu_functions"),
     # Random123 + BLAS++ / LAPACK++
     ensure_path(DEPS_INSTALL / "include" / "Random123", "Random123 headers"),
     ensure_path(DEPS_INSTALL / "include" / "blas", "BLAS++ headers"),
@@ -76,7 +64,7 @@ libraries = [
 ]
 
 # -------------------------------------------------------------------
-# Compiler flags (with AVX512 FP16 workaround)
+# Compiler flags (with AVX512 FP16 + libstdc++ SIMD workarounds)
 # -------------------------------------------------------------------
 
 extra_compile_args = {
@@ -85,22 +73,27 @@ extra_compile_args = {
         "-fopenmp",
         "-std=c++20",
         "-D_GLIBCXX_USE_CXX11_ABI=0",
-        "-D_GLIBCXX_SIMD_ENABLE=0",
-        "-mno-avx512fp16",  # avoid AVX512 FP16 header problems on GCC 12
+        "-mno-avx512fp16",          # avoid AVX512 FP16 intrinsics
+        "-D_GLIBCXX_SIMD_ENABLE=0", # disable libstdc++ experimental SIMD
     ],
     "nvcc": [
         "-O3",
         "-std=c++20",
         "--expt-relaxed-constexpr",
         "-Xcompiler=-fPIC",
-        # same AVX512 FP16 workaround on nvcc host side
         "-Xcompiler=-mno-avx512fp16",
         "-Xcompiler=-D_GLIBCXX_SIMD_ENABLE=0",
-        # your TITAN X is compute capability 5.2
         "-gencode=arch=compute_52,code=sm_52",
         "-D_GLIBCXX_USE_CXX11_ABI=0",
+        # *** KEY: force nvcc to use g++-11 as host, not gcc/g++-12 ***
+        "-ccbin",
+        "g++-11",
     ],
 }
+
+# -------------------------------------------------------------------
+# Custom BuildExtension: add torch paths & rpaths, set arch list
+# -------------------------------------------------------------------
 
 
 class TorchCUDAExtensionBuilder(BuildExtension):
@@ -113,26 +106,25 @@ class TorchCUDAExtensionBuilder(BuildExtension):
     """
 
     def build_extensions(self):
-        # Import torch only here, not at module import time
         import torch
 
         torch_includes = torch.utils.cpp_extension.include_paths()
         torch_lib_dir = Path(torch.__file__).parent / "lib"
 
         for ext in self.extensions:
-            # Extend include dirs with torch includes
+            # include dirs: our deps + torch includes
             ext.include_dirs.extend(torch_includes)
 
-            # Library dirs: deps + torch libs
+            # library dirs: deps + torch libs
             ext.library_dirs.extend([
                 str(torch_lib_dir),
             ])
 
-            # Runtime search path so the extension can find shared libs at import
+            # runtime search path so the extension can find shared libs at import
             rpaths = list(getattr(ext, "runtime_library_dirs", []) or [])
-            dl = str(DEPS_INSTALL / "lib")
-            if dl not in rpaths:
-                rpaths.append(dl)
+            deps_lib_dir = str(DEPS_INSTALL / "lib")
+            if deps_lib_dir not in rpaths:
+                rpaths.append(deps_lib_dir)
             if str(torch_lib_dir) not in rpaths:
                 rpaths.append(str(torch_lib_dir))
             ext.runtime_library_dirs = rpaths
