@@ -12,7 +12,12 @@ from torch.utils.cpp_extension import BuildExtension, CUDAExtension, CppExtensio
 ROOT = Path(__file__).resolve().parent
 DEPS_INSTALL = ROOT / "deps" / "install"
 
-INCLUDE_DIRS = [str(DEPS_INSTALL / "include")]
+INCLUDE_DIRS = [
+    str(DEPS_INSTALL / "include"),
+    str(DEPS_INSTALL / "include" / "RandLAPACK"),
+    str(DEPS_INSTALL / "include" / "RandLAPACK" / "drivers"),
+]
+
 LIBRARY_DIRS = [str(DEPS_INSTALL / "lib")]
 
 LIBRARIES = [
