@@ -28,7 +28,9 @@ if command -v apt-get >/dev/null 2>&1; then
       libopenblas-dev \
       liblapack-dev \
       liblapacke-dev \
-      libomp-dev
+      libomp-dev \
+      gcc-11 \
+      g++-11
 else
     echo "[install.sh] WARNING: apt-get not found."
     echo "  Please ensure the following are installed manually:"
@@ -36,6 +38,7 @@ else
     echo "    - cmake, git, ninja-build, wget, curl"
     echo "    - python3-dev, python3-pip, setuptools, wheel"
     echo "    - libopenblas-dev, liblapack-dev, liblapacke-dev, libomp-dev"
+    echo "    - gcc-11, g++-11"
 fi
 
 ###############################
@@ -131,7 +134,7 @@ cmake .. \
   -DCMAKE_CXX_STANDARD=20 \
   -DRandom123_DIR="$DEPS_INSTALL/include" \
   -DUSE_CUDA=ON \
-  -DCUDAHOSTCXX=g++-12
+  -DCUDAHOSTCXX=g++-11
 
 make -j"$NPROC" || make
 make install
