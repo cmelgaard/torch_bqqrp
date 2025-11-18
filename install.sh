@@ -37,6 +37,7 @@ make install
 ###################################
 cd "$DEPS_SRC"
 git clone https://github.com/BallisticLA/RandLAPACK.git || true
+(cd RandLAPACK && git submodule update --init --recursive)
 
 mkdir -p RandLAPACK/build
 cd RandLAPACK/build
