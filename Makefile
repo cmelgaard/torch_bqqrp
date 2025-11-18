@@ -24,3 +24,5 @@ install:
 clean:
 	rm -rf build dist *.egg-info
 	find . -name "*.so" -delete
+
+clean-all: clean clean-deps

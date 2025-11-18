@@ -1,0 +1,49 @@
+[build-system]
+requires = [
+    "setuptools>=61",
+    "wheel",
+    # Make sure torch is available *before* running setup.py / build_ext
+    "torch>=2.0.0",
+    "numpy>=1.24",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "torch_bqrrp"
+version = "0.1.0"
+description = "PyTorch bindings for randomized blocked QR with rank-revealing pivoting (RandLAPACK)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+authors = [
+    { name = "Your Name", email = "you@example.com" }
+]
+
+dependencies = [
+    # runtime deps (torch is needed at runtime too)
+    "torch>=2.0.0",
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "mypy",
+    "black",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourname/torch_bqrrp"
+Source = "https://github.com/yourname/torch_bqrrp"
+
+[tool.setuptools]
+packages = ["torch_bqrrp"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["torch_bqrrp"]
+
+[tool.setuptools.dynamic]
+# If you later want dynamic versioning, you can hook it here.
+# version = {attr = "torch_bqrrp.__version__"}
