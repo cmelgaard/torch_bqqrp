@@ -26,3 +26,5 @@ clean:
 	find . -name "*.so" -delete
 
 clean-all: clean clean-deps
+
+.PHONY: all deps clean-deps build install clean
