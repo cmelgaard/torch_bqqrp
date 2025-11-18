@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
+
 import os
 from pathlib import Path
 
@@ -9,10 +10,10 @@ from torch.utils.cpp_extension import CUDAExtension, BuildExtension
 # Environment: force CUDA + safe host compiler
 # -------------------------------------------------------------------
 
-# GPU is required
+# GPU build is required
 os.environ.setdefault("USE_CUDA", "1")
 
-# Use GCC/G++ 12 as host for nvcc (CUDA 12.x is happiest with <= 12)
+# Use GCC/G++ 12 as host for nvcc (CUDA 12.x prefers <= 12)
 os.environ.setdefault("CUDAHOSTCXX", "g++-12")
 os.environ.setdefault("CC", "gcc-12")
 os.environ.setdefault("CXX", "g++-12")
@@ -24,14 +25,15 @@ os.environ.setdefault("CXX", "g++-12")
 ROOT = Path(__file__).parent.resolve()
 DEPS_INSTALL = ROOT / "deps" / "install"
 DEPS_SRC = ROOT / "deps" / "src"
-DEPS_SRC_RL = DEPS_SRC / "RandLAPACK"  # for rl_cuda_kernels.cuh
+DEPS_SRC_RL = DEPS_SRC / "RandLAPACK"
 
-def ensure_path(p: Path, what: str):
+
+def ensure_path(p: Path, what: str) -> str:
     if not p.exists():
         raise RuntimeError(f"{what} not found: {p}")
     return str(p)
 
-# Core include dirs — this is the piece you pasted
+
 include_dirs = [
     ensure_path(DEPS_INSTALL / "include", "deps/install/include"),
     # RandBLAS / RandLAPACK hierarchy
@@ -48,79 +50,9 @@ include_dirs = [
     ensure_path(DEPS_SRC_RL, "RandLAPACK source tree (for rl_cuda_kernels.cuh)"),
 ]
 
-LIB_DIR = ensure_path(DEPS_INSTALL / "lib", "deps/install/lib")
-
-# -------------------------------------------------------------------
-# Custom BuildExtension: import torch *only* inside build_extensions
-# -------------------------------------------------------------------
-
-class TorchCUDAExtensionBuilder(BuildExtension):
-    def build_extensions(self):
-        # IMPORTANT: torch is only imported here, *not* at module import time.
-        import torch
-
-        # Torch include paths
-        torch_includes = torch.utils.cpp_extension.include_paths()
-
-        for ext in self.extensions:
-            # Core deps includes + torch includes
-            ext.include_dirs.extend(include_dirs + torch_includes)
-
-            # Library dirs: our deps + torch libs
-            ext.library_dirs.extend([
-                LIB_DIR,
-                str(Path(torch.__file__).parent / "lib"),
-            ])
-
-            # Runtime search path so the linker can find libs at import time
-            rpaths = list(getattr(ext, "runtime_library_dirs", []) or [])
-            if LIB_DIR not in rpaths:
-                rpaths.append(LIB_DIR)
-            ext.runtime_library_dirs = rpaths
-
-            # Set CUDA arch list based on your actual GPU
-            if torch.cuda.is_available():
-                cc = torch.cuda.get_device_capability()
-                os.environ["TORCH_CUDA_ARCH_LIST"] = f"{cc[0]}{cc[1]}"
-
-        super().build_extensions()
-
-# -------------------------------------------------------------------
-# Sources
-# -------------------------------------------------------------------
-
-sources = [
-    "csrc/bqrrp_binding.cpp",
-    "csrc/bqrrp_cpu.cpp",
-    "csrc/bqrrp_gpu.cu",  # GPU is required
+library_dirs = [
+    ensure_path(DEPS_INSTALL / "lib", "deps/install/lib"),
 ]
-
-# -------------------------------------------------------------------
-# Compiler flags
-# -------------------------------------------------------------------
-
-extra_compile_args = {
-    "cxx": [
-        "-O3",
-        "-std=c++20",
-        "-fopenmp",
-        "-D_GLIBCXX_USE_CXX11_ABI=0",
-    ],
-    "nvcc": [
-        "-O3",
-        "-std=c++20",
-        "--expt-relaxed-constexpr",
-        "-Xcompiler=-fPIC",
-        # Avoid the AVX512 FP16 header mess with GCC 13 headers
-        "-Xcompiler=-mno-avx512fp16",
-        # Your TITAN X is compute capability 5.2
-        "-gencode=arch=compute_52,code=sm_52",
-    ],
-}
-
-# -------------------------------------------------------------------
-# Libraries to link against
-# -------------------------------------------------------------------
 
 libraries = [
     "RandLAPACK",
@@ -134,14 +66,84 @@ libraries = [
 ]
 
 # -------------------------------------------------------------------
-# CUDA extension definition
+# Compiler flags (with AVX512 FP16 workaround)
 # -------------------------------------------------------------------
+
+extra_compile_args = {
+    "cxx": [
+        "-O3",
+        "-fopenmp",
+        "-std=c++20",
+        "-D_GLIBCXX_USE_CXX11_ABI=0",
+        "-mno-avx512fp16",  # avoid AVX512 FP16 header problems on GCC 12
+    ],
+    "nvcc": [
+        "-O3",
+        "-std=c++20",
+        "--expt-relaxed-constexpr",
+        "-Xcompiler=-fPIC",
+        "-Xcompiler=-mno-avx512fp16",  # same workaround on nvcc host side
+        "-gencode=arch=compute_52,code=sm_52",
+        "-D_GLIBCXX_USE_CXX11_ABI=0",
+    ],
+}
+
+
+class TorchCUDAExtensionBuilder(BuildExtension):
+    """
+    Custom BuildExtension that:
+      * imports torch lazily
+      * adds torch's include + lib dirs
+      * sets runtime_library_dirs so deps/install/lib is on the loader path
+      * sets TORCH_CUDA_ARCH_LIST based on the actual GPU (if available)
+    """
+
+    def build_extensions(self):
+        import torch
+
+        torch_includes = torch.utils.cpp_extension.include_paths()
+        torch_lib_dir = Path(torch.__file__).parent / "lib"
+
+        for ext in self.extensions:
+            # Extend include dirs with torch includes
+            ext.include_dirs.extend(torch_includes)
+
+            # Library dirs: deps + torch libs
+            ext.library_dirs.extend([
+                str(torch_lib_dir),
+            ])
+
+            # Runtime search path so the extension can find shared libs at import
+            rpaths = list(getattr(ext, "runtime_library_dirs", []) or [])
+            if str(DEPS_INSTALL / "lib") not in rpaths:
+                rpaths.append(str(DEPS_INSTALL / "lib"))
+            if str(torch_lib_dir) not in rpaths:
+                rpaths.append(str(torch_lib_dir))
+            ext.runtime_library_dirs = rpaths
+
+            # Set CUDA arch list based on current GPU (if CUDA is available)
+            if torch.cuda.is_available():
+                cc = torch.cuda.get_device_capability()
+                os.environ["TORCH_CUDA_ARCH_LIST"] = f"{cc[0]}{cc[1]}"
+
+        super().build_extensions()
+
+
+# -------------------------------------------------------------------
+# Sources
+# -------------------------------------------------------------------
+
+sources = [
+    "csrc/bqrrp_binding.cpp",
+    "csrc/bqrrp_cpu.cpp",
+    "csrc/bqrrp_gpu.cu",
+]
 
 ext = CUDAExtension(
     name="torch_bqrrp._bqrrp",
     sources=sources,
-    include_dirs=[],       # populated in build_extensions
-    library_dirs=[],       # populated in build_extensions
+    include_dirs=include_dirs,
+    library_dirs=library_dirs,
     libraries=libraries,
     extra_compile_args=extra_compile_args,
 )
@@ -153,6 +155,7 @@ ext = CUDAExtension(
 setup(
     name="torch_bqrrp",
     version="0.1.0",
+    description="Torch bindings for RandLAPACK BQRRP",
     packages=["torch_bqrrp"],
     ext_modules=[ext],
     cmdclass={"build_ext": TorchCUDAExtensionBuilder},
