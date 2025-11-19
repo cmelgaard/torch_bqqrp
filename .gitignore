@@ -1,0 +1,100 @@
+# -----------------------------
+# Python basics
+# -----------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+*.pickle
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter stuff
+.ipynb_checkpoints/
+
+# -----------------------------
+# Build artifacts (C++, CUDA, PyTorch)
+# -----------------------------
+build/
+build*/              # sometimes ninja generates build.* dirs
+dist/
+*.egg-info/
+*.egg/
+.eggs/
+
+# Ninja build cache
+.ninja_log
+.ninja_deps
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake-build-*/
+Makefile
+cmake_install.cmake
+
+# Compiled extension modules
+*.so
+*.dylib
+*.dll
+*.a
+*.o
+*.obj
+
+# PyTorch C++ extension temporary dirs
+tmp/
+tmp*/
+*/tmp/
+*.d         # dependency files
+*.dSYM/     # mac debug symbols
+
+# pip editable installs
+pip-wheel-metadata/
+pip-egg-info/
+
+# -----------------------------
+# Torch + CUDA deps (installed under deps/)
+# -----------------------------
+deps/install/
+deps/src/*/build*/
+deps/src/*/CMakeFiles/
+deps/src/*/*.a
+deps/src/*/*.o
+deps/src/*/*.so
+deps/src/*/*.dylib
+
+# Keep the actual source clones in deps/src
+# but ignore all build output inside them
+deps/src/*/bin/
+deps/src/*/lib/
+deps/src/*/lib64/
+deps/src/*/include/*/CMakeFiles/
+
+# -----------------------------
+# Cache, logs, misc
+# -----------------------------
+*.log
+*.cache
+.cache/
+tags
+.DS_Store
+*.swp
+*.swo
+*.tmp
+
+# -----------------------------
+# Python packaging
+# -----------------------------
+*.whl
+MANIFEST
+
+# -----------------------------
+# IDE files
+# -----------------------------
+.vscode/
+.idea/
+*.iml
