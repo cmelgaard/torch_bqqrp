@@ -22,7 +22,11 @@ install:
 	$(PYTHON) -m pip install -e .
 
 clean:
-	rm -rf build dist *.egg-info
-	find . -name "*.so" -delete
+	# Remove build artifacts, but keep deps/ and all .so files
+	rm -rf build
+	rm -rf dist
+	rm -rf *.egg-info
+	find . -name "__pycache__" -type d -exec rm -rf {} +
+	rm -f torch_bqrrp/_bqrrp*.so
 
 clean-all: clean clean-deps
