@@ -4,7 +4,7 @@ bqrrp_demo.py
 Simple sanity-check example for the RandLAPACK BQRRP binding.
 """
 
-import torch
+import torch, os
 from torch_bqrrp import bqrrp
 
 
