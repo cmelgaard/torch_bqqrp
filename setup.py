@@ -56,16 +56,22 @@ library_dirs = [
     ensure_path(DEPS_INSTALL / "lib", "deps/install/lib"),
 ]
 
+# Base PyTorch libs (always linked)
 libraries = [
-    "RandLAPACK",
-    "RandBLAS",
-    "blaspp",
-    "lapackpp",
     "c10",
     "torch",
     "torch_cpu",
     "torch_python",
 ]
+
+# Optional CUDA / RandLAPACK libs
+if USE_CUDA:
+    libraries.extend([
+        "RandLAPACK",
+        "RandBLAS",
+        "blaspp",
+        "lapackpp",
+    ])
 
 # -------------------------------------------------------------------
 # Compiler flags (with libstdc++ SIMD workaround; NO avx512fp16 flag)
@@ -94,7 +100,7 @@ extra_compile_args = {
 if USE_CUDA:
     extra_compile_args["cxx"].append("-DTORCH_BQRRP_WITH_CUDA=1")
     extra_compile_args["nvcc"].append("-DTORCH_BQRRP_WITH_CUDA=1")
-    
+
 # -------------------------------------------------------------------
 # Custom BuildExtension: add torch paths & rpaths, set arch list
 # -------------------------------------------------------------------
