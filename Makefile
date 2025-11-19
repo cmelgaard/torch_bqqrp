@@ -19,7 +19,7 @@ build:
 
 install:
 	@make deps
-	$(PYTHON) -m pip install -e .
+	$(PYTHON) -m pip install -e . --no-build-isolation
 
 clean:
 	# Remove build artifacts, but keep deps/ and all .so files
