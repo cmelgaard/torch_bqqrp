@@ -9,14 +9,18 @@ from torch_bqrrp import bqrrp
 
 
 def main():
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    use_cuda_flag = os.environ.get("USE_CUDA", "1") == "1"
+    if use_cuda_flag and torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
+
     dtype = torch.float64
 
     m, n = 5000, 2800
     block_size = 900
     d_factor = 1.0
     d = int(block_size * d_factor)
-
     print(f"Device: {device}, dtype: {dtype}")
     print(f"Matrix size: m={m}, n={n}, block_size={block_size}, d={d}")
 
