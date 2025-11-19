@@ -91,6 +91,10 @@ extra_compile_args = {
     ],
 }
 
+if USE_CUDA:
+    extra_compile_args["cxx"].append("-DTORCH_BQRRP_WITH_CUDA=1")
+    extra_compile_args["nvcc"].append("-DTORCH_BQRRP_WITH_CUDA=1")
+    
 # -------------------------------------------------------------------
 # Custom BuildExtension: add torch paths & rpaths, set arch list
 # -------------------------------------------------------------------
