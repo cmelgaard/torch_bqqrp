@@ -74,7 +74,8 @@ std::tuple<Tensor, Tensor, Tensor> bqrrp_cuda(
             A_sk_dev.copy_(A_sk_cpu.to(opts.device()));
 
             // 2. Call GPU BQRRP with sketch on device
-            scalar_t* A_dev_ptr    = A.data_ptr<scalar_t>();
+            Tensor A_cm = A.to(torch::kCUDA).transpose(0, 1).contiguous();  // (n, m), CUDA tensor
+            scalar_t* A_dev_ptr    = A_cm.data_ptr<scalar_t>();
             scalar_t* A_sk_dev_ptr = A_sk_dev.data_ptr<scalar_t>();
             scalar_t* tau_ptr      = tau.data_ptr<scalar_t>();
             int64_t*  J_ptr        = J.data_ptr<int64_t>();
@@ -99,6 +100,9 @@ std::tuple<Tensor, Tensor, Tensor> bqrrp_cuda(
 
             TORCH_CHECK(info == 0,
                         "RandLAPACK::BQRRP_GPU.call returned ", info);
+
+            Tensor A_fact = A_cm.transpose(0, 1).contiguous();  // (m, n) CUDA, row-major
+            A = A_fact;
         });
 
     return std::make_tuple(A, tau, J);

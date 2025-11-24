@@ -37,7 +37,8 @@ std::tuple<Tensor, Tensor, Tensor> bqrrp_cpu(
             using scalar_t = scalar_t;
             using RNG      = r123::Philox4x32;
 
-            scalar_t* A_ptr   = A.data_ptr<scalar_t>();
+            Tensor A_cm = A.transpose(0, 1).contiguous();  // (n, m), row-major
+            scalar_t* A_ptr   = A_cm.data_ptr<scalar_t>();
             scalar_t* tau_ptr = tau.data_ptr<scalar_t>();
             int64_t*  J_ptr   = J.data_ptr<int64_t>();
 
@@ -66,6 +67,10 @@ std::tuple<Tensor, Tensor, Tensor> bqrrp_cpu(
             );
 
             TORCH_CHECK(info == 0, "RandLAPACK::BQRRP.call returned ", info);
+
+            Tensor A_fact = A_cm.transpose(0, 1).contiguous();  // (m, n) row-major
+            A = A_fact;
+
         });
 
     return std::make_tuple(A, tau, J);
