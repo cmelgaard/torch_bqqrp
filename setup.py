@@ -5,14 +5,10 @@ from pathlib import Path
 from setuptools import setup
 from torch.utils.cpp_extension import CppExtension, CUDAExtension, BuildExtension
 
-# -------------------------------------------------------------------
-# Hard-set compilers: FORCE gcc/g++-11 everywhere
-# -------------------------------------------------------------------
-
 # Keep your compiler choices
-os.environ["CC"] = "gcc-11"
-os.environ["CXX"] = "g++-11"
-os.environ["CUDAHOSTCXX"] = "g++-11"
+# os.environ["CC"] = "gcc-11"
+# os.environ["CXX"] = "g++-11"
+# os.environ["CUDAHOSTCXX"] = "g++-11"
 
 # CUDA toggle:
 #   USE_CUDA=1 (default) -> build GPU + CPU
@@ -54,11 +50,12 @@ include_dirs = [
 
 library_dirs = [
     ensure_path(DEPS_INSTALL / "lib", "deps/install/lib"),
+    ensure_path(DEPS_INSTALL / "lib64", "deps/install/lib64"),
 ]
 
 # Base PyTorch libs (always linked)
 libraries = [
-    "c10",
+    #"c10",
     "torch",
     "torch_cpu",
     "torch_python",
@@ -67,8 +64,8 @@ libraries = [
 # Optional CUDA / RandLAPACK libs
 if USE_CUDA:
     libraries.extend([
-        "RandLAPACK",
-        "RandBLAS",
+        #"RandLAPACK",
+        #"RandBLAS",
         "blaspp",
         "lapackpp",
     ])
@@ -91,8 +88,6 @@ extra_compile_args = {
         "--expt-relaxed-constexpr",
         "-Xcompiler=-fPIC",
         "-Xcompiler=-D_GLIBCXX_SIMD_ENABLE=0",
-        # your TITAN X is compute capability 5.2
-        "-gencode=arch=compute_52,code=sm_52",
         "-D_GLIBCXX_USE_CXX11_ABI=0",
     ],
 }
@@ -145,7 +140,7 @@ class TorchCUDAExtensionBuilder(BuildExtension):
             # Set CUDA arch list based on current GPU (if CUDA is available AND we are building CUDA)
             if USE_CUDA and torch.cuda.is_available():
                 cc = torch.cuda.get_device_capability()
-                os.environ["TORCH_CUDA_ARCH_LIST"] = f"{cc[0]}{cc[1]}"
+                os.environ["TORCH_CUDA_ARCH_LIST"] = f"{cc[0]}.{cc[1]}"
 
         super().build_extensions()
 

@@ -134,7 +134,8 @@ cmake .. \
   -DCMAKE_CXX_STANDARD=20 \
   -DRandom123_DIR="$DEPS_INSTALL/include" \
   -DUSE_CUDA=ON \
-  -DCUDAHOSTCXX=g++-11
+  -DCUDAHOSTCXX=g++-11 \
+  -Dbuild_tests=OFF
 
 make -j"$NPROC" || make
 make install
