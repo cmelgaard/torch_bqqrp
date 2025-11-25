@@ -55,7 +55,6 @@ library_dirs = [
 
 # Base PyTorch libs (always linked)
 libraries = [
-    #"c10",
     "torch",
     "torch_cpu",
     "torch_python",
@@ -79,7 +78,7 @@ extra_compile_args = {
         "-O3",
         "-fopenmp",
         "-std=c++20",
-        "-D_GLIBCXX_USE_CXX11_ABI=0",
+        #"-D_GLIBCXX_USE_CXX11_ABI=0",
         "-D_GLIBCXX_SIMD_ENABLE=0",  # disable libstdc++ experimental SIMD
     ],
     "nvcc": [
@@ -88,7 +87,10 @@ extra_compile_args = {
         "--expt-relaxed-constexpr",
         "-Xcompiler=-fPIC",
         "-Xcompiler=-D_GLIBCXX_SIMD_ENABLE=0",
-        "-D_GLIBCXX_USE_CXX11_ABI=0",
+        "-DUSE_CUDA=1",
+        # your TITAN X is compute capability 5.2
+        # "-gencode=arch=compute_52,code=sm_52",
+        #"-D_GLIBCXX_USE_CXX11_ABI=0",
     ],
 }
 

@@ -11,11 +11,11 @@ from torch_bqrrp import bqrrp
 def main():
     use_cuda_flag = os.environ.get("USE_CUDA", "1") == "1"
     if use_cuda_flag and torch.cuda.is_available():
-        device = "cuda"
+        device = "cuda:0"
     else:
         device = "cpu"
 
-    dtype = torch.float64
+    dtype = torch.float32
 
     m, n = 5000, 2800
     block_size = 900

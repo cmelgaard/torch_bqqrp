@@ -11,27 +11,7 @@ mkdir -p "$DEPS_INSTALL"
 ###############################
 # System dependencies (apt-based)
 ###############################
-if command -v apt-get >/dev/null 2>&1; then
-    echo "[install.sh] Installing/ensuring system dependencies via apt-get..."
-    sudo apt-get update
-    sudo apt-get install -y \
-      build-essential \
-      cmake \
-      git \
-      ninja-build \
-      wget \
-      curl \
-      python3-dev \
-      python3-pip \
-      python3-setuptools \
-      python3-wheel \
-      libopenblas-dev \
-      liblapack-dev \
-      liblapacke-dev \
-      libomp-dev \
-      gcc-11 \
-      g++-11
-else
+
     echo "[install.sh] WARNING: apt-get not found."
     echo "  Please ensure the following are installed manually:"
     echo "    - build-essential (gcc, g++)"
@@ -39,7 +19,6 @@ else
     echo "    - python3-dev, python3-pip, setuptools, wheel"
     echo "    - libopenblas-dev, liblapack-dev, liblapacke-dev, libomp-dev"
     echo "    - gcc-11, g++-11"
-fi
 
 ###############################
 # Parallel jobs
@@ -133,9 +112,7 @@ cmake .. \
   -DCMAKE_INSTALL_PREFIX="$DEPS_INSTALL" \
   -DCMAKE_CXX_STANDARD=20 \
   -DRandom123_DIR="$DEPS_INSTALL/include" \
-  -DUSE_CUDA=ON \
-  -DCUDAHOSTCXX=g++-11 \
-  -Dbuild_tests=OFF
+  -DUSE_CUDA=ON
 
 make -j"$NPROC" || make
 make install
