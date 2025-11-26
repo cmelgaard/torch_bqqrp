@@ -65,7 +65,10 @@ def main():
 
     A = torch.randn(m, n, device=device, dtype=dtype)
 
-    A_factored, tau, J = bqrrp(A, block_size=block_size, d=d,)
+    #A_factored, tau, J = bqrrp(A, block_size=block_size, d=d,)
+    A_factored = torch.zeros_like(A, device=device)
+    tau = torch.zeros(n, dtype=dtype, device=device)
+    J = torch.ones(n, dtype=torch.int64, device=device)
     J -= 1
 
     print("BQRRP completed.")
@@ -86,6 +89,18 @@ def main():
     print(f"FRO NORM OF (Q^T Q - I): {orth_err.item():.3e}")
     print("===========================")
 
+    del A, A_factored, tau, J, Q, R, AP, QR, rel_err, orth_err
+
 
 if __name__ == "__main__":
+    main()
+    import gc
+    gc.collect()
+    import time
+    time.sleep(2)
+    main()
+    import gc
+    gc.collect()
+    import time
+    time.sleep(2)
     main()

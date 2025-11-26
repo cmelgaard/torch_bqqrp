@@ -76,6 +76,7 @@ if USE_CUDA:
 extra_compile_args = {
     "cxx": [
         "-O3",
+        "-g3",
         "-fopenmp",
         "-std=c++20",
         #"-D_GLIBCXX_USE_CXX11_ABI=0",
@@ -83,6 +84,8 @@ extra_compile_args = {
     ],
     "nvcc": [
         "-O3",
+        "-g",
+        "-G",
         "-std=c++20",
         "--expt-relaxed-constexpr",
         "-Xcompiler=-fPIC",
