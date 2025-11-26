@@ -49,7 +49,7 @@ include_dirs = [
 ]
 
 library_dirs = [
-    ensure_path(DEPS_INSTALL / "lib", "deps/install/lib"),
+    #ensure_path(DEPS_INSTALL / "lib", "deps/install/lib"),
     ensure_path(DEPS_INSTALL / "lib64", "deps/install/lib64"),
 ]
 
@@ -91,6 +91,8 @@ extra_compile_args = {
         # your TITAN X is compute capability 5.2
         # "-gencode=arch=compute_52,code=sm_52",
         #"-D_GLIBCXX_USE_CXX11_ABI=0",
+        "-DCUDA_LAUNCH_BLOCKING=1",
+        "-DTORCH_USE_CUDA_DSA=1",
     ],
 }
 
@@ -118,6 +120,7 @@ class TorchCUDAExtensionBuilder(BuildExtension):
 
         torch_includes = torch.utils.cpp_extension.include_paths()
         torch_lib_dir = Path(torch.__file__).parent / "lib"
+        torch_nvidia_dir = Path(torch.__file__).parent.parent / "nvidia" / "cusolver" / "lib"
 
         for ext in self.extensions:
             # include dirs: our deps + torch includes
@@ -132,11 +135,13 @@ class TorchCUDAExtensionBuilder(BuildExtension):
 
             # runtime search path so the extension can find shared libs at import
             rpaths = list(getattr(ext, "runtime_library_dirs", []) or [])
-            dl = str(DEPS_INSTALL / "lib")
+            dl = str(DEPS_INSTALL / "lib64")
             if dl not in rpaths:
                 rpaths.append(dl)
             if str(torch_lib_dir) not in rpaths:
                 rpaths.append(str(torch_lib_dir))
+            if str(torch_nvidia_dir) not in rpaths:
+                rpaths.append(str(torch_nvidia_dir))
             ext.runtime_library_dirs = rpaths
 
             # Set CUDA arch list based on current GPU (if CUDA is available AND we are building CUDA)

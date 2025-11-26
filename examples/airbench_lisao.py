@@ -33,7 +33,6 @@ torch.backends.cudnn.benchmark = True
 #               Lisao optimizer              #
 #############################################
 
-@torch.compile
 def lisao_via_QRCP(G, steps=3, eps=1e-7):
     """
     Newton-Schulz iteration to compute the zeroth power / orthogonalization of G. We opt to use a
@@ -74,6 +73,7 @@ def lisao_via_QRCP(G, steps=3, eps=1e-7):
 
     # BQRRP factorization: mat ≈ Q R P^T, R stored in upper triangle of A_factored
     A_factored, tau, J = bqrrp(mat, block_size=block_size, d=d)
+    J -= 1 # convert from LAPACK convention to C convention
 
     # Extract R (n x n) from the first n rows
     R = torch.triu(A_factored[:n, :n], diagonal=0)
@@ -97,13 +97,15 @@ def lisao_via_QRCP(G, steps=3, eps=1e-7):
     Xsolve = tll.solve_triangular(T, Xmat, upper=True)
     Xsolve = Xsolve.to(torch.float16)
 
+    JT = torch.argsort(J)
+
     # Apply transform depending on aspect ratio
     if tall:
         # G: (m x n), Xsolve: (n x n)
-        toret = G @ Xsolve
+        toret = G[:, J] @ Xsolve[:, JT]
     else:
         # G: (m x n), mat = G^T: (n x m), Xsolve: (m x m)
-        toret = Xsolve.mT @ G
+        toret = Xsolve.mT[JT, :] @ G[J, :]
     return toret
 
 class Lisao(torch.optim.Optimizer):
